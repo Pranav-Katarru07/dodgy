@@ -5,11 +5,7 @@ import {
   resolveHurtEffect,
   HURT_DURATION_MS,
   HeartParticles,
-  // deprecated helpers retained for the v0.4 engine:
-  frameIndexFor,
-  resolveEntry,
 } from './sprite-engine';
-import type { SpriteManifestEntry, SpriteState } from './types';
 
 // ===========================================================================
 // frameIndexForDurations — cumulative-duration lookup, looping, reducedMotion
@@ -173,91 +169,5 @@ describe('HeartParticles', () => {
     hp.spawn(0, 0, seq(0.5));
     hp.clear();
     expect(hp.count()).toBe(0);
-  });
-});
-
-// ===========================================================================
-// Retained v0.4 helpers (@deprecated) — kept green until Phase 4 deletion
-// ===========================================================================
-
-const entry = (
-  tier: number,
-  state: SpriteState,
-  extra: Partial<SpriteManifestEntry> = {},
-): SpriteManifestEntry => ({
-  tier,
-  state,
-  sheetUrl: `sprites/${tier}/${state}.png`,
-  frameW: 96,
-  frameH: 96,
-  frames: 6,
-  fps: 8,
-  ...extra,
-});
-
-describe('frameIndexFor (deprecated v0.4)', () => {
-  it('returns 0 at time 0', () => {
-    expect(frameIndexFor(0, 8, 6)).toBe(0);
-  });
-
-  it('advances one frame per 1/fps seconds', () => {
-    expect(frameIndexFor(124, 8, 6)).toBe(0);
-    expect(frameIndexFor(125, 8, 6)).toBe(1);
-    expect(frameIndexFor(250, 8, 6)).toBe(2);
-  });
-
-  it('loops modulo frame count', () => {
-    expect(frameIndexFor(750, 8, 6)).toBe(0);
-    expect(frameIndexFor(875, 8, 6)).toBe(1);
-  });
-
-  it('is stable for single-frame animations', () => {
-    expect(frameIndexFor(9999, 8, 1)).toBe(0);
-  });
-
-  it('halves effective fps under reduced motion', () => {
-    expect(frameIndexFor(249, 8, 6, true)).toBe(0);
-    expect(frameIndexFor(250, 8, 6, true)).toBe(1);
-    expect(frameIndexFor(500, 8, 6, true)).toBe(2);
-  });
-
-  it('guards non-positive / non-finite inputs', () => {
-    expect(frameIndexFor(-5, 8, 6)).toBe(0);
-    expect(frameIndexFor(100, 0, 6)).toBe(0);
-    expect(frameIndexFor(100, Number.POSITIVE_INFINITY, 6)).toBe(0);
-  });
-});
-
-describe('resolveEntry fallback chain (deprecated v0.4)', () => {
-  const manifest: SpriteManifestEntry[] = [
-    entry(0, 'idle'),
-    entry(0, 'run'),
-    entry(0, 'happy'),
-    entry(0, 'hurt'),
-    entry(0, 'desperate'),
-    entry(0, 'dead'),
-    entry(1, 'idle', { frameW: 112 }),
-    entry(1, 'run', { frameW: 112 }),
-  ];
-
-  it('returns the exact (tier,state) entry when present', () => {
-    expect(resolveEntry(manifest, 1, 'run')).toMatchObject({ tier: 1, state: 'run', frameW: 112 });
-  });
-
-  it('falls back to tier 0 same state when tier art is missing', () => {
-    expect(resolveEntry(manifest, 1, 'hurt')).toMatchObject({ tier: 0, state: 'hurt' });
-  });
-
-  it('falls back to tier 0 idle when neither tier has the state', () => {
-    const trimmed = manifest.filter((e) => !(e.tier === 0 && e.state === 'dead'));
-    expect(resolveEntry(trimmed, 3, 'dead')).toMatchObject({ tier: 0, state: 'idle' });
-  });
-
-  it('returns undefined only when the manifest is empty', () => {
-    expect(resolveEntry([], 0, 'idle')).toBeUndefined();
-  });
-
-  it('prefers the requested tier over tier 0 for the same state', () => {
-    expect(resolveEntry(manifest, 1, 'idle')?.tier).toBe(1);
   });
 });

@@ -22,7 +22,7 @@ export const DEFAULT_SETTINGS: Settings = {
     'tumblr.com',
   ],
 
-  // v1 (frozen)
+  // Pokémon v1
   starterLevel: 5,
   faintLevelPenalty: 5,
   faintStreakToPermadeath: 3,
@@ -30,10 +30,6 @@ export const DEFAULT_SETTINGS: Settings = {
   eggCost: 50,
   daysToHatch: 5,
   pokedexTitle: 'Dodgédex',
-
-  // v0.4 (deprecated; retained for green-tree compatibility)
-  lockoutHours: 24,
-  levelsPerEvolution: 30,
 };
 
 export const STORAGE_KEYS = {
@@ -43,12 +39,6 @@ export const STORAGE_KEYS = {
 
 export const ALARMS = {
   dailyRollover: 'daily-rollover',
-  /**
-   * @deprecated v0.4 only. Lockout ends at local midnight (daily rollover), so
-   * no dedicated lockout-end alarm is scheduled in v1. Retained because the
-   * v0.4 background/alarms code still references it.
-   */
-  lockoutEnd: 'lockout-end',
   /** Per-domain grace-expiry alarms are named `${gracePrefix}${domain}`. */
   gracePrefix: 'grace:',
 } as const;

@@ -36,10 +36,8 @@ interface TextFieldSpec {
 
 type FieldSpec = NumberFieldSpec | TextFieldSpec;
 
-// Field order mirrors PRD §11 + Phase 3C: pokedexTitle first, then the shared
-// v0.4 numerics, then the v1 numerics. lockoutHours and levelsPerEvolution are
-// deprecated and intentionally NOT rendered (they pass through untouched on
-// Save via the working-copy spread).
+// Field order mirrors PRD §11: pokedexTitle first, then the core numerics, then
+// the Pokémon v1 numerics.
 const FIELD_SPECS: readonly FieldSpec[] = [
   {
     kind: 'text',
@@ -352,9 +350,8 @@ async function handleSave(event: SubmitEvent): Promise<void> {
     return;
   }
   saveBtn.disabled = true;
-  // `working` is the stored Settings spread + our edited fields, so the frozen
-  // deprecated fields (lockoutHours / levelsPerEvolution) pass through unchanged
-  // from what GET_STATE returned. UPDATE_SETTINGS still sends the full object.
+  // `working` is the stored Settings spread + our edited fields. UPDATE_SETTINGS
+  // sends the full object.
   const full = await sendMessage({ type: 'UPDATE_SETTINGS', settings: working });
   render(full);
 
@@ -373,8 +370,7 @@ async function handleSave(event: SubmitEvent): Promise<void> {
 
 /** Re-render the whole form from an authoritative FullState. */
 function render(full: FullState): void {
-  // Fresh working copy so staged edits don't leak across renders. The full
-  // spread carries the deprecated fields through untouched.
+  // Fresh working copy so staged edits don't leak across renders.
   working = { ...full.settings, blocklist: [...full.settings.blocklist] };
 
   for (const spec of FIELD_SPECS) {

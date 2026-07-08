@@ -12,8 +12,7 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "sprites": "node scripts/generate-sprites.mjs"
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.268",

@@ -16,9 +16,10 @@ function isV1State(raw: unknown): raw is GameState {
 }
 
 /**
- * Carry the v0.4 settings that survive into v1 over DEFAULT_SETTINGS. The
- * v0.4-only fields (`lockoutHours`, `levelsPerEvolution`) are dropped by reset
- * to the v1 defaults; the new v1 fields come from DEFAULT_SETTINGS.
+ * Carry the v0.4 settings that survive into v1 over DEFAULT_SETTINGS. Any
+ * v0.4-only fields present in the old blob (e.g. `lockoutHours`,
+ * `levelsPerEvolution`) are simply not copied, so they drop away; the v1 fields
+ * come from DEFAULT_SETTINGS.
  */
 export function migrateSettings(rawSettings: Partial<Settings> | undefined): Settings {
   const src = rawSettings ?? {};

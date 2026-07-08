@@ -8,12 +8,11 @@ import type { PokemonSprite } from '../shared/sprite-engine';
  * clamped to the viewport with soft edge-repulsion so it never corner-pins.
  * Desperate raises base speed and steering snappiness.
  *
- * Sprite integration (v1 Pokémon fork): the motion core is unchanged from v0.4;
- * only the render surface swapped from the flat SpriteEngine to PokemonSprite:
+ * Sprite integration drives a PokemonSprite:
  *   - setAnim('walk') while the guardian is moving, 'idle' once the cursor goes
  *     still (so it stops walking in place when you stop chasing).
  *   - setDirection(vx, vy) every tick picks the 8-way PMD facing row from the
- *     current velocity vector (replaces the old setFlipX).
+ *     current velocity vector.
  *   - setEffect('desperate') is applied once at construction when the guardian
  *     is low on HP (red tint); the physics desperate speedup constants stay.
  *

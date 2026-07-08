@@ -40,9 +40,9 @@ describe('migrateSettings', () => {
     expect(out.levelUpThreshold).toBe(4);
     expect(out.graceMinutes).toBe(30);
     expect(out.blocklist).toEqual(['youtube.com', 'reddit.com']);
-    // v0.4-only fields reset to v1 defaults (not the v0.4 values):
-    expect(out.lockoutHours).toBe(DEFAULT_SETTINGS.lockoutHours);
-    expect(out.levelsPerEvolution).toBe(DEFAULT_SETTINGS.levelsPerEvolution);
+    // v0.4-only fields are dropped entirely (no longer part of Settings):
+    expect((out as unknown as Record<string, unknown>).lockoutHours).toBeUndefined();
+    expect((out as unknown as Record<string, unknown>).levelsPerEvolution).toBeUndefined();
     // New v1 fields come from defaults:
     expect(out.starterLevel).toBe(DEFAULT_SETTINGS.starterLevel);
     expect(out.faintLevelPenalty).toBe(DEFAULT_SETTINGS.faintLevelPenalty);

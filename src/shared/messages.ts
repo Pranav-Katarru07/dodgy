@@ -1,4 +1,4 @@
-import type { FullState, LegacyFullState, Settings, SpeciesId } from './types';
+import type { FullState, Settings, SpeciesId } from './types';
 
 export type Request =
   | { type: 'GET_STATE' }
@@ -13,28 +13,10 @@ export type Request =
   | { type: 'ACK_EVOLUTION'; monId: string };
 
 // ---------------------------------------------------------------------------
-// PayEntryResponse — collision-resolved
+// PayEntryResponse
 // ---------------------------------------------------------------------------
-//
-// v0.4 shape: { outcome:'granted'|'death', hp, lockoutUntil, graceExpiresAt,
-// redirect:true }. The v1 shape (below) is frozen and different: its `outcome`
-// union and required fields don't match, so `PayEntryResponse` is the v1 shape
-// and the v0.4 shape lives on as `LegacyPayEntryResponse`. The v0.4 background
-// (src/background/index.ts) is repointed to the legacy name.
 
-/**
- * @deprecated v0.4 result of paying 1 HP to enter a domain. Superseded by the
- * v1 {@link PayEntryResponse}. Retained for the v0.4 background handler.
- */
-export interface LegacyPayEntryResponse {
-  outcome: 'granted' | 'death';
-  hp: number;
-  lockoutUntil: number | null;
-  graceExpiresAt: number;
-  redirect: true;
-}
-
-/** v1 result of paying to enter a domain (frozen). */
+/** Result of paying to enter a domain. */
 export interface PayEntryResponse {
   outcome: 'granted' | 'faint' | 'permadeath' | 'locked' | 'no-guardian';
   hp: number;
@@ -86,7 +68,3 @@ export type ResponseFor<R extends Request> = ResponseMap[R['type']];
 export function sendMessage<R extends Request>(request: R): Promise<ResponseFor<R>> {
   return chrome.runtime.sendMessage(request) as Promise<ResponseFor<R>>;
 }
-
-// Re-exported so the v0.4 background handler can annotate its combined-view
-// producers/consumers without a deep import path change.
-export type { LegacyFullState };
