@@ -14,8 +14,8 @@
 import type { FullState } from '../shared/types';
 import { SpriteEngine } from '../shared/sprite-engine';
 import { sendMessage } from '../shared/messages';
-import { normalizeDomain } from '../shared/domains';
 import { Chase } from './chase';
+import { parseTarget } from './target';
 import {
   renderGuilt,
   renderLockout,
@@ -51,28 +51,10 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/** Read and validate the target URL from the query string. */
-function readTarget(): { target: string; domain: string } | null {
-  const raw = new URLSearchParams(location.search).get('target');
-  if (!raw) return null;
-  let target: string;
-  try {
-    // Decodes and validates; must be an http(s) URL we can navigate to.
-    const url = new URL(raw);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
-    target = url.href;
-  } catch {
-    return null;
-  }
-  const domain = normalizeDomain(target);
-  if (!domain) return null;
-  return { target, domain };
-}
-
 async function main(): Promise<void> {
   const app = appRoot();
 
-  const parsed = readTarget();
+  const parsed = parseTarget(location.search);
   if (!parsed) {
     renderError(
       app,

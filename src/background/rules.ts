@@ -16,8 +16,11 @@
 //   - (?:[:/?#].*)? = optional port/path/query/fragment, or bare host
 //
 // regexSubstitution: chrome-extension://<id>/src/gate/gate.html?target=\1
-//   DNR does NOT URL-encode the substitution; the gate reads params.get('target'),
-//   which is acceptable for v1.
+//   DNR does NOT URL-encode the substitution, so the raw matched URL (which can
+//   contain its own '?' and '&') is appended verbatim after 'target='. The gate
+//   MUST NOT parse this with URLSearchParams.get('target') — that truncates at
+//   the first '&'. It instead takes everything after 'target=' verbatim; see
+//   src/gate/target.ts (extractRawTarget) and its tests.
 //
 // Rule ids are stable and derived from the (normalized, deduped) blocklist
 // ordering: id = index + 1. We never persist a domain->id map; we recompute it
