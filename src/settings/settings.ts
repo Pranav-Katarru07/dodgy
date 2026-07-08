@@ -3,8 +3,10 @@ import { sendMessage } from '../shared/messages';
 import { normalizeDomain } from '../shared/domains';
 import type { FullState, Settings } from '../shared/types';
 
-/** Numeric settings keys (everything on Settings except the blocklist). */
-type NumericKey = Exclude<keyof Settings, 'blocklist'>;
+/** Numeric settings keys (the number-valued fields of Settings). */
+type NumericKey = {
+  [K in keyof Settings]: Settings[K] extends number ? K : never;
+}[keyof Settings];
 
 interface FieldSpec {
   key: NumericKey;

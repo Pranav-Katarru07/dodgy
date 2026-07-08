@@ -11,7 +11,9 @@
  * This module owns page orchestration only. Chase physics live in ./chase and
  * static-screen rendering lives in ./screens; both are consumed here.
  */
-import type { FullState } from '../shared/types';
+// v0.4 gate: uses the legacy (PetState-backed) combined view. Phase 3 rewrites
+// this against the v1 `FullState`.
+import type { LegacyFullState as FullState } from '../shared/types';
 import { SpriteEngine } from '../shared/sprite-engine';
 import { sendMessage } from '../shared/messages';
 import { Chase } from './chase';
@@ -70,7 +72,9 @@ async function main(): Promise<void> {
     manifest = await SpriteEngine.loadManifest(
       chrome.runtime.getURL('sprites/manifest.json'),
     );
-    state = await sendMessage({ type: 'GET_STATE' });
+    // GET_STATE's frozen response is the v1 FullState; the v0.4 background
+    // returns the legacy shape at runtime. Cast until Phase 3 rewrites the gate.
+    state = (await sendMessage({ type: 'GET_STATE' })) as unknown as FullState;
   } catch {
     renderError(
       app,
@@ -119,7 +123,7 @@ function runLockout(
     countdownEl.textContent = formatCountdown(0);
     let fresh: FullState;
     try {
-      fresh = await sendMessage({ type: 'GET_STATE' });
+      fresh = (await sendMessage({ type: 'GET_STATE' })) as unknown as FullState;
     } catch {
       // Couldn't reach the SW; leave the wall up rather than misbehave.
       return;

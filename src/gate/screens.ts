@@ -1,4 +1,4 @@
-import type { FullState } from '../shared/types';
+import type { LegacyFullState as FullState } from '../shared/types';
 import type { SpriteState } from '../shared/types';
 import { SpriteEngine } from '../shared/sprite-engine';
 

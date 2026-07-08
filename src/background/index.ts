@@ -4,10 +4,12 @@
 // into the pure functions.
 import type {
   Request,
-  PayEntryResponse,
+  LegacyPayEntryResponse as PayEntryResponse,
   SpareResponse,
 } from '../shared/messages';
-import type { Settings, PetState, FullState } from '../shared/types';
+// v0.4 background path: `FullState` here is the legacy (PetState-backed) shape.
+// The unadorned names now carry the v1 shapes; phases 2–3 swap this handler.
+import type { Settings, PetState, LegacyFullState as FullState } from '../shared/types';
 import { DEFAULT_SETTINGS, ALARMS } from '../shared/constants';
 import { normalizeDomain } from '../shared/domains';
 import {
@@ -285,7 +287,10 @@ function validateSettings(raw: Settings): Settings {
       blocklist.push(d);
     }
   }
+  // Spread `raw` so v1 fields (starterLevel, eggCost, pokedexTitle, …) pass
+  // through untouched, then override the v0.4 numerics with validated values.
   return {
+    ...raw,
     maxHp: clampMin(raw.maxHp, 1),
     damagePerEntry: clampMin(raw.damagePerEntry, 1),
     levelUpThreshold: clampMin(raw.levelUpThreshold, 1),

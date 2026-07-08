@@ -3,7 +3,7 @@
 // and a live lockout countdown when applicable. Refreshes every 30s while open.
 import { sendMessage } from '../shared/messages';
 import { SpriteEngine } from '../shared/sprite-engine';
-import type { FullState, SpriteState } from '../shared/types';
+import type { LegacyFullState as FullState, SpriteState } from '../shared/types';
 
 const STATE_REFRESH_MS = 30_000;
 const COUNTDOWN_TICK_MS = 1_000;
@@ -227,7 +227,9 @@ function stopCountdown(): void {
 
 async function refresh(): Promise<void> {
   try {
-    const full = await sendMessage({ type: 'GET_STATE' });
+    // GET_STATE's frozen response is the v1 FullState; the v0.4 background
+    // returns the legacy shape at runtime. Cast until Phase 3 rewrites the popup.
+    const full = (await sendMessage({ type: 'GET_STATE' })) as unknown as FullState;
     render(full);
   } catch {
     // Service worker unreachable (e.g. still spinning up); keep the fallback.

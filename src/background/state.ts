@@ -1,4 +1,7 @@
-import type { Settings, PetState, DerivedState } from '../shared/types';
+// v0.4 code path: the derived view here is the legacy shape. The unadorned
+// `DerivedState`/`FullState` names now carry the v1 (Pokémon) shapes, so the
+// v0.4 producers/consumers use the `Legacy*` aliases until phases 2–3 swap them.
+import type { Settings, PetState, LegacyDerivedState as DerivedState } from '../shared/types';
 
 /**
  * Pure, side-effect-free state-transition functions.
