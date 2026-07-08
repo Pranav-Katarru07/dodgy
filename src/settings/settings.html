@@ -4,11 +4,273 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>dodgy — settings</title>
+    <style>
+      :root {
+        --bg: #14151f;
+        --panel: #1e2030;
+        --panel-2: #262a3d;
+        --text: #e8eaf2;
+        --muted: #9aa0b8;
+        --accent: #f0a04b;
+        --accent-strong: #ffb968;
+        --danger: #ff7676;
+        --border: #333853;
+        --ok: #7fd08b;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 24px 16px 64px;
+        font-family: system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.5;
+      }
+
+      #app {
+        max-width: 640px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        font-size: 1.6rem;
+        margin: 0 0 4px;
+      }
+
+      h2 {
+        font-size: 1.15rem;
+        margin: 0 0 12px;
+        color: var(--accent-strong);
+      }
+
+      .subtitle {
+        color: var(--muted);
+        margin: 0 0 24px;
+      }
+
+      section {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+
+      .note {
+        background: var(--panel-2);
+        border-left: 3px solid var(--accent);
+        border-radius: 6px;
+        padding: 10px 14px;
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin: 0 0 20px;
+      }
+
+      .field {
+        margin-bottom: 18px;
+      }
+
+      .field:last-child {
+        margin-bottom: 0;
+      }
+
+      .field label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 2px;
+      }
+
+      .field .explain {
+        display: block;
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin-bottom: 6px;
+      }
+
+      input[type='number'],
+      input[type='text'] {
+        width: 100%;
+        max-width: 160px;
+        padding: 8px 10px;
+        background: var(--panel-2);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font: inherit;
+      }
+
+      #add-domain-input {
+        max-width: none;
+        flex: 1;
+      }
+
+      input:focus-visible,
+      button:focus-visible {
+        outline: 2px solid var(--accent-strong);
+        outline-offset: 2px;
+      }
+
+      input[aria-invalid='true'] {
+        border-color: var(--danger);
+      }
+
+      .error {
+        display: none;
+        color: var(--danger);
+        font-size: 0.82rem;
+        margin-top: 4px;
+      }
+
+      .error.visible {
+        display: block;
+      }
+
+      button {
+        font: inherit;
+        cursor: pointer;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--panel-2);
+        color: var(--text);
+        padding: 8px 16px;
+      }
+
+      button.primary {
+        background: var(--accent);
+        color: #1a1206;
+        border-color: var(--accent);
+        font-weight: 700;
+      }
+
+      button.primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      button.link {
+        background: transparent;
+        border: none;
+        color: var(--accent-strong);
+        padding: 4px 0;
+        text-decoration: underline;
+      }
+
+      .blocklist {
+        list-style: none;
+        margin: 0 0 16px;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .blocklist li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 6px 6px 6px 12px;
+      }
+
+      .blocklist .empty {
+        color: var(--muted);
+        font-style: italic;
+      }
+
+      .remove-btn {
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        font-size: 1.3rem;
+        line-height: 1;
+        padding: 2px 8px;
+        border-radius: 6px;
+      }
+
+      .remove-btn:hover {
+        color: var(--danger);
+      }
+
+      .add-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 4px;
+      }
+
+      .save-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      #saved-region {
+        color: var(--ok);
+        font-weight: 600;
+        opacity: 0;
+      }
+
+      #saved-region.visible {
+        opacity: 1;
+      }
+
+      @media (prefers-reduced-motion: no-preference) {
+        button.primary,
+        #saved-region,
+        input {
+          transition:
+            opacity 0.2s ease,
+            border-color 0.15s ease,
+            background 0.15s ease;
+        }
+      }
+    </style>
   </head>
   <body>
-    <main id="app">
+    <main id="app" hidden>
       <h1>dodgy — settings</h1>
-      <p>Placeholder. Editable settings and blocklist land here.</p>
+      <p class="subtitle">Tune how tough dodgy is, and which sites it guards.</p>
+
+      <p class="note">Lowering max HP clamps dodgy's current health down into range.</p>
+
+      <form id="settings-form" novalidate>
+        <section aria-labelledby="rules-heading">
+          <h2 id="rules-heading">Rules</h2>
+          <div id="fields"></div>
+        </section>
+
+        <section aria-labelledby="blocklist-heading">
+          <h2 id="blocklist-heading">Blocklist</h2>
+          <ul id="blocklist" class="blocklist" aria-label="Blocked domains"></ul>
+
+          <div class="add-row">
+            <label for="add-domain-input" class="sr-only" hidden>Domain to block</label>
+            <input
+              type="text"
+              id="add-domain-input"
+              placeholder="add a site, e.g. youtube.com"
+              autocomplete="off"
+              aria-describedby="add-domain-error"
+            />
+            <button type="button" id="add-domain-btn">Add</button>
+          </div>
+          <p id="add-domain-error" class="error" role="alert"></p>
+
+          <button type="button" id="reset-blocklist-btn" class="link">
+            Reset to default
+          </button>
+        </section>
+
+        <div class="save-row">
+          <button type="submit" id="save-btn" class="primary">Save</button>
+          <span id="saved-region" aria-live="polite" role="status"></span>
+        </div>
+      </form>
     </main>
     <script type="module" src="./settings.ts"></script>
   </body>
