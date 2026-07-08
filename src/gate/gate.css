@@ -1,0 +1,300 @@
+/* dodgy gate page — calm, cinematic, hand-rolled. No external assets/fonts. */
+
+:root {
+  --bg-top: #241b33;
+  --bg-mid: #1a1526;
+  --bg-bot: #0d0a14;
+  --ink: #ece7f5;
+  --ink-dim: #a99fc0;
+  --ink-faint: #6f6789;
+  --accent: #b79cff;
+  --danger: #ff8a9c;
+  --spare: #8ff0c2;
+  --panel: rgba(20, 16, 30, 0.72);
+  --panel-border: rgba(183, 156, 255, 0.18);
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(
+      120% 80% at 50% 8%,
+      var(--bg-top) 0%,
+      var(--bg-mid) 45%,
+      var(--bg-bot) 100%
+    );
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Soft vignette overlay. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    130% 100% at 50% 45%,
+    transparent 55%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+  z-index: 2;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+}
+
+/* The chase canvas fills the viewport and sits above the background. */
+#chase-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 3;
+  cursor: crosshair;
+}
+
+/* Chase hint + a11y fallback live above the canvas but ignore pointer events
+   except the button itself. */
+.chase-ui {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.chase-hint {
+  margin-top: 8vh;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-dim);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.9s var(--ease), transform 0.9s var(--ease);
+}
+
+.chase-hint.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.chase-hint b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.give-up {
+  pointer-events: auto;
+  margin-top: auto;
+  margin-bottom: 6vh;
+  background: rgba(20, 16, 30, 0.5);
+  border: 1px solid var(--panel-border);
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease),
+    color 0.2s, border-color 0.2s;
+}
+
+.give-up.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.give-up:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+.give-up:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  color: var(--ink);
+}
+
+/* Full-screen centered panels for guilt / lockout / spared / death / error. */
+.screen {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6vh 8vw;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(10px) scale(0.985);
+  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
+  pointer-events: none;
+}
+
+.screen.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.screen canvas {
+  display: block;
+  filter: drop-shadow(0 12px 40px rgba(0, 0, 0, 0.5));
+}
+
+.screen h2 {
+  margin: 1.4rem 0 0.5rem;
+  font-size: clamp(1.4rem, 3.2vw, 2.1rem);
+  font-weight: 600;
+  line-height: 1.2;
+  max-width: 22ch;
+}
+
+.screen p {
+  margin: 0.25rem 0;
+  color: var(--ink-dim);
+  font-size: clamp(0.95rem, 1.8vw, 1.1rem);
+  line-height: 1.5;
+  max-width: 34ch;
+}
+
+.screen p.sub {
+  color: var(--ink-faint);
+  font-size: 0.9rem;
+}
+
+.countdown {
+  margin-top: 1.2rem;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.8rem, 5vw, 3rem);
+  font-weight: 300;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+}
+
+/* Hearts row. */
+.hearts {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.35rem;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.hearts .heart {
+  color: var(--danger);
+  filter: drop-shadow(0 1px 4px rgba(255, 138, 156, 0.4));
+}
+
+.hearts .heart.empty {
+  color: var(--ink-faint);
+  filter: none;
+  opacity: 0.5;
+}
+
+.actions {
+  margin-top: 2rem;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.btn {
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 500;
+  padding: 0.8rem 1.6rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s var(--ease), background 0.2s, border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.btn-continue {
+  background: rgba(255, 138, 156, 0.12);
+  border-color: rgba(255, 138, 156, 0.45);
+  color: var(--danger);
+}
+
+.btn-continue:hover {
+  background: rgba(255, 138, 156, 0.2);
+  box-shadow: 0 6px 24px rgba(255, 138, 156, 0.18);
+}
+
+.btn-spare {
+  background: rgba(143, 240, 194, 0.14);
+  border-color: rgba(143, 240, 194, 0.5);
+  color: var(--spare);
+}
+
+.btn-spare:hover {
+  background: rgba(143, 240, 194, 0.22);
+  box-shadow: 0 6px 24px rgba(143, 240, 194, 0.18);
+}
+
+.link {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(183, 156, 255, 0.4);
+  padding-bottom: 1px;
+}
+
+.link:hover {
+  border-bottom-color: var(--accent);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen,
+  .chase-hint,
+  .give-up,
+  .btn {
+    transition-duration: 0.01ms !important;
+  }
+}
