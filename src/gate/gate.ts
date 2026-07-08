@@ -1,50 +1,63 @@
 /**
- * Gate page entry point.
+ * Gate page entry point (v1 Pokémon fork).
  *
- * Flow (see dodgy-PRD.md §5):
- *   load ?target → derive domain → GET_STATE
- *     inLockout          → lockout wall (countdown → revive → chase)
- *     otherwise          → chase → catch → guilt
- *                            Continue → PAY_ENTRY → hurt → granted|death
- *                            Spare    → SPARE     → happy → back|rest
+ * On load: parse ?target, then GET_STATE + loadSpeciesData() in parallel, then
+ * route by derived state:
+ *   needsStarterPick   → STARTER PICK  → PICK_STARTER → "Go, {name}!" → chase
+ *   needsGuardianPick  → GUARDIAN SELECT → SET_GUARDIAN → chase
+ *   inLockout          → LOCKOUT WALL (countdown → chase at midnight)
+ *   otherwise          → CHASE → catch → GUILT
+ *                          Continue → PAY_ENTRY → granted|faint|permadeath|locked|no-guardian
+ *                          Let it be → SPARE → happy → back|rest
  *
- * This module owns page orchestration only. Chase physics live in ./chase and
- * static-screen rendering lives in ./screens; both are consumed here.
+ * This module owns orchestration only. Chase physics live in ./chase, static
+ * screens in ./screens, sprite/species helpers in ./sprite-view.
  */
-// v0.4 gate: uses the legacy (PetState-backed) combined view. Phase 3 rewrites
-// this against the v1 `FullState`.
-import type { LegacyFullState as FullState } from '../shared/types';
-import { SpriteEngine } from '../shared/sprite-engine';
+import type { FullState, PartyMember } from '../shared/types';
 import { sendMessage } from '../shared/messages';
+import { loadSpeciesData, type SpeciesData } from '../shared/species';
+import { PokemonSprite } from '../shared/sprite-engine';
 import { Chase } from './chase';
 import { parseTarget } from './target';
+import { stageForGuardian, type SpriteView } from './sprite-view';
 import {
-  renderGuilt,
+  renderStarterPick,
+  renderGuardianSelect,
   renderLockout,
+  renderGuilt,
+  renderFaint,
+  renderPermadeath,
   renderSpared,
-  renderDeath,
   renderError,
   formatCountdown,
-  type ScreenSpriteDeps,
+  type ScreenDeps,
 } from './screens';
 
-const HURT_MS = 800;
-const DEATH_MS = 2500;
+const GRANTED_HURT_MS = 800;
+const FAINT_MS = 2500;
+const PERMADEATH_MS = 3000;
 const SPARED_MS = 1600;
+const GO_BEAT_MS = 1000;
 const MISSES_BEFORE_FALLBACK = 3;
 
 const prefersReducedMotion = window.matchMedia(
   '(prefers-reduced-motion: reduce)',
 ).matches;
 
-/** Resolve the app root, or throw loudly if the HTML is malformed. */
+interface Ctx {
+  app: HTMLElement;
+  deps: ScreenDeps;
+  data: SpeciesData;
+  target: string;
+  domain: string;
+}
+
 function appRoot(): HTMLElement {
   const app = document.getElementById('app');
   if (!app) throw new Error('gate: #app root missing');
   return app;
 }
 
-/** Remove every child screen/canvas so the next scene starts clean. */
 function clearApp(app: HTMLElement): void {
   app.replaceChildren();
 }
@@ -60,56 +73,142 @@ async function main(): Promise<void> {
   if (!parsed) {
     renderError(
       app,
-      'This page can only be opened by dodgy when it guards a site. The address was missing or invalid.',
+      'This page can only be opened when a guardian is watching a site. The address was missing or invalid.',
     );
     return;
   }
   const { target, domain } = parsed;
 
-  let manifest;
+  let data: SpeciesData;
   let state: FullState;
   try {
-    manifest = await SpriteEngine.loadManifest(
-      chrome.runtime.getURL('sprites/manifest.json'),
-    );
-    // GET_STATE's frozen response is the v1 FullState; the v0.4 background
-    // returns the legacy shape at runtime. Cast until Phase 3 rewrites the gate.
-    state = (await sendMessage({ type: 'GET_STATE' })) as unknown as FullState;
+    [state, data] = await Promise.all([
+      sendMessage({ type: 'GET_STATE' }),
+      loadSpeciesData(),
+    ]);
   } catch {
     renderError(
       app,
-      "dodgy couldn't wake up just now. Try reloading, or open settings.",
+      "Your guardian couldn't wake up just now. Try reloading, or open settings.",
     );
     return;
   }
 
-  const deps: ScreenSpriteDeps = {
-    manifest,
-    tier: state.derived.evolutionTier,
-    reducedMotion: prefersReducedMotion,
-  };
+  const deps: ScreenDeps = { data, reducedMotion: prefersReducedMotion };
+  const ctx: Ctx = { app, deps, data, target, domain };
 
-  if (state.derived.inLockout) {
-    runLockout(app, deps, state, target, domain);
+  route(ctx, state);
+}
+
+/** Pick the screen for the current state. */
+function route(ctx: Ctx, state: FullState): void {
+  const d = state.derived;
+  if (d.needsStarterPick) {
+    runStarterPick(ctx);
     return;
   }
+  if (d.needsGuardianPick) {
+    runGuardianSelect(ctx, state);
+    return;
+  }
+  if (d.inLockout) {
+    runLockout(ctx, state);
+    return;
+  }
+  runChase(ctx, state);
+}
 
-  runChase(app, deps, state, target, domain);
+// --- Starter pick ---------------------------------------------------------
+
+function runStarterPick(ctx: Ctx): void {
+  clearApp(ctx.app);
+  let busy = false;
+  renderStarterPick(ctx.app, ctx.deps, {
+    onPick: (species) => {
+      if (busy) return;
+      busy = true;
+      void pickStarter(ctx, species);
+    },
+  });
+}
+
+async function pickStarter(ctx: Ctx, species: string): Promise<void> {
+  let res;
+  try {
+    res = await sendMessage({ type: 'PICK_STARTER', species });
+  } catch {
+    renderError(ctx.app, "Couldn't send out your starter. Try reloading, or open settings.");
+    return;
+  }
+  if (!res.ok) {
+    renderError(ctx.app, "That starter couldn't be chosen. Try reloading, or open settings.");
+    return;
+  }
+  const state = res.state;
+  const name = guardianName(ctx.data, state.derived.guardian);
+  await goBeat(ctx, `Go, ${name}!`);
+  runChase(ctx, state);
+}
+
+/** A brief "Go, {name}!" beat before the chase (~1s). */
+async function goBeat(ctx: Ctx, text: string): Promise<void> {
+  clearApp(ctx.app);
+  const el = document.createElement('section');
+  el.className = 'screen';
+  const box = document.createElement('div');
+  box.className = 'gb-dialog go-beat';
+  const h2 = document.createElement('h2');
+  h2.textContent = text;
+  box.appendChild(h2);
+  el.appendChild(box);
+  ctx.app.appendChild(el);
+  void el.offsetWidth;
+  requestAnimationFrame(() => el.classList.add('show'));
+  await sleep(GO_BEAT_MS);
+}
+
+// --- Guardian select ------------------------------------------------------
+
+function runGuardianSelect(ctx: Ctx, state: FullState): void {
+  clearApp(ctx.app);
+  let busy = false;
+  renderGuardianSelect(
+    ctx.app,
+    ctx.deps,
+    state.state.party,
+    state.settings.maxHp,
+    {
+      onSelect: (monId) => {
+        if (busy) return;
+        busy = true;
+        void setGuardian(ctx, monId);
+      },
+    },
+  );
+}
+
+async function setGuardian(ctx: Ctx, monId: string): Promise<void> {
+  let res;
+  try {
+    res = await sendMessage({ type: 'SET_GUARDIAN', monId });
+  } catch {
+    renderError(ctx.app, "Couldn't set your guardian. Try reloading, or open settings.");
+    return;
+  }
+  if (!res.ok) {
+    renderError(ctx.app, "That guardian couldn't be set. Try reloading, or open settings.");
+    return;
+  }
+  runChase(ctx, res.state);
 }
 
 // --- Lockout wall ---------------------------------------------------------
 
-function runLockout(
-  app: HTMLElement,
-  deps: ScreenSpriteDeps,
-  state: FullState,
-  target: string,
-  domain: string,
-): void {
-  clearApp(app);
-  const { countdownEl } = renderLockout(app, deps);
+function runLockout(ctx: Ctx, state: FullState): void {
+  clearApp(ctx.app);
+  const { countdownEl, view } = renderLockout(ctx.app, ctx.deps, state.derived.guardian);
 
-  const until = state.state.lockoutUntil ?? Date.now();
+  const until = state.derived.lockoutUntil ?? Date.now();
   let timer = 0;
 
   const tick = async (): Promise<void> => {
@@ -118,22 +217,16 @@ function runLockout(
       countdownEl.textContent = formatCountdown(remaining);
       return;
     }
-    // Time's up: re-query state. The SW revives dodgy on read past lockout.
     window.clearInterval(timer);
     countdownEl.textContent = formatCountdown(0);
     let fresh: FullState;
     try {
-      fresh = (await sendMessage({ type: 'GET_STATE' })) as unknown as FullState;
+      fresh = await sendMessage({ type: 'GET_STATE' });
     } catch {
-      // Couldn't reach the SW; leave the wall up rather than misbehave.
-      return;
+      return; // leave the wall up rather than misbehave
     }
-    if (fresh.derived.inLockout) {
-      // Still locked (clock skew / fresh lockout) — resume counting.
-      runLockout(app, { ...deps, tier: fresh.derived.evolutionTier }, fresh, target, domain);
-      return;
-    }
-    runChase(app, { ...deps, tier: fresh.derived.evolutionTier }, fresh, target, domain);
+    view?.destroy();
+    route(ctx, fresh);
   };
 
   void tick();
@@ -142,14 +235,16 @@ function runLockout(
 
 // --- Chase ----------------------------------------------------------------
 
-function runChase(
-  app: HTMLElement,
-  deps: ScreenSpriteDeps,
-  state: FullState,
-  target: string,
-  domain: string,
-): void {
-  clearApp(app);
+function runChase(ctx: Ctx, state: FullState): void {
+  clearApp(ctx.app);
+
+  const guardian = state.derived.guardian;
+  const stage = guardian ? stageForGuardian(ctx.data, guardian) : null;
+  if (!guardian || !stage) {
+    // No renderable guardian — fall back to selection/pick.
+    route(ctx, state);
+    return;
+  }
 
   const canvas = document.createElement('canvas');
   canvas.id = 'chase-canvas';
@@ -159,22 +254,23 @@ function runChase(
 
   const hint = document.createElement('div');
   hint.className = 'chase-hint';
-  hint.innerHTML = 'Catch <b>dodgy</b> to keep going.';
+  hint.innerHTML = `Catch <b>${escapeHtml(stage.name)}</b> to keep going.`;
 
   const giveUp = document.createElement('button');
   giveUp.type = 'button';
   giveUp.className = 'give-up';
-  giveUp.textContent = "I can't catch dodgy";
+  giveUp.textContent = "I can't catch it";
 
   ui.append(hint, giveUp);
-  app.append(canvas, ui);
+  ctx.app.append(canvas, ui);
 
   requestAnimationFrame(() => hint.classList.add('show'));
 
-  const engine = new SpriteEngine(canvas, deps.manifest, {
-    reducedMotion: prefersReducedMotion,
-    resolveUrl: chrome.runtime.getURL,
-  });
+  const sprite = new PokemonSprite(
+    canvas,
+    { walk: stage.sprites.walk, idle: stage.sprites.idle },
+    { reducedMotion: prefersReducedMotion, resolveUrl: chrome.runtime.getURL },
+  );
 
   let chase: Chase | null = null;
 
@@ -182,30 +278,26 @@ function runChase(
     giveUp.classList.add('show');
   };
 
-  const toGuilt = (): void => {
-    chase?.stop();
-    runGuilt(app, deps, state, target, domain);
-  };
-
-  giveUp.addEventListener('click', toGuilt);
-  // Tab is an explicit signal the user wants keyboard-reachable escape.
   const onKey = (e: KeyboardEvent): void => {
     if (e.key === 'Tab') revealFallback();
   };
   window.addEventListener('keydown', onKey);
 
-  // Load art for the current tier, then start the chase.
-  void engine.load(deps.tier).then(async () => {
-    await engine.setTier(deps.tier);
+  const toGuilt = (): void => {
+    window.removeEventListener('keydown', onKey);
+    chase?.stop();
+    runGuilt(ctx, state);
+  };
+
+  giveUp.addEventListener('click', toGuilt);
+
+  void sprite.load().then(() => {
     chase = new Chase({
       canvas,
-      engine,
+      sprite,
       desperate: state.derived.desperate,
       reducedMotion: prefersReducedMotion,
-      onCatch: () => {
-        window.removeEventListener('keydown', onKey);
-        toGuilt();
-      },
+      onCatch: toGuilt,
       onMiss: (count) => {
         if (count >= MISSES_BEFORE_FALLBACK) revealFallback();
       },
@@ -216,91 +308,168 @@ function runChase(
 
 // --- Guilt / confirm ------------------------------------------------------
 
-function runGuilt(
-  app: HTMLElement,
-  deps: ScreenSpriteDeps,
-  state: FullState,
-  target: string,
-  domain: string,
-): void {
-  clearApp(app);
-
+function runGuilt(ctx: Ctx, state: FullState): void {
+  clearApp(ctx.app);
   let busy = false;
-
-  const { engine } = renderGuilt(app, state, deps, {
+  const { view } = renderGuilt(ctx.app, state, ctx.deps, {
     onContinue: () => {
       if (busy) return;
       busy = true;
-      void doContinue(app, deps, engine, target, domain);
+      void doContinue(ctx, state, view);
     },
     onSpare: () => {
       if (busy) return;
       busy = true;
-      void doSpare(app, deps, engine, domain);
+      void doSpare(ctx, state, view);
     },
   });
 }
 
 async function doContinue(
-  app: HTMLElement,
-  deps: ScreenSpriteDeps,
-  guiltEngine: SpriteEngine,
-  target: string,
-  domain: string,
+  ctx: Ctx,
+  state: FullState,
+  view: SpriteView | null,
 ): Promise<void> {
+  // Hold the pre-call guardian level for the faint before→after readout.
+  const levelBefore = state.derived.guardian?.level ?? 0;
+  const guardianBefore = state.derived.guardian;
+
   let res;
   try {
-    res = await sendMessage({ type: 'PAY_ENTRY', domain });
+    res = await sendMessage({ type: 'PAY_ENTRY', domain: ctx.domain });
   } catch {
-    renderError(
-      app,
-      "dodgy couldn't take the hit just now. Try reloading, or open settings.",
-    );
+    renderError(ctx.app, "Your guardian couldn't take the hit just now. Try reloading, or open settings.");
     return;
   }
 
-  // Play the hit on the held guilt sprite before moving on.
-  guiltEngine.setState('hurt');
-  await sleep(HURT_MS);
-
-  if (res.outcome === 'granted') {
-    location.replace(target);
-    return;
+  switch (res.outcome) {
+    case 'granted': {
+      // Play the hit on the held guilt sprite, then honor the redirect.
+      view?.sprite.setEffect('hurt');
+      await sleep(GRANTED_HURT_MS);
+      location.replace(ctx.target);
+      return;
+    }
+    case 'faint': {
+      view?.destroy();
+      // PAY_ENTRY returns hp/faintStreak only; re-GET_STATE for the new level.
+      let after = levelBefore;
+      let guardianForFaint = guardianBefore;
+      try {
+        const fresh = await sendMessage({ type: 'GET_STATE' });
+        const g = findGuardianForFaint(fresh, guardianBefore);
+        if (g) {
+          after = g.level;
+          guardianForFaint = g;
+        }
+      } catch {
+        /* fall back to held values */
+      }
+      clearApp(ctx.app);
+      const faintView = renderFaint(ctx.app, ctx.deps, {
+        guardian: guardianForFaint,
+        levelBefore,
+        levelAfter: after,
+        faintStreak: res.faintStreak,
+        faintStreakToPermadeath: state.settings.faintStreakToPermadeath,
+      });
+      // hurt flash → grayscale.
+      await sleep(700);
+      faintView.view?.sprite.setEffect('fainted');
+      await sleep(FAINT_MS - 700);
+      location.replace(ctx.target);
+      return;
+    }
+    case 'permadeath': {
+      view?.destroy();
+      clearApp(ctx.app);
+      renderPermadeath(ctx.app, ctx.deps, {
+        guardian: guardianBefore,
+        partyEmpty: res.partyEmpty,
+      });
+      await sleep(PERMADEATH_MS);
+      location.replace(ctx.target);
+      return;
+    }
+    case 'locked': {
+      view?.destroy();
+      // Re-fetch so the lockout wall shows the correct guardian/countdown.
+      let fresh: FullState = state;
+      try {
+        fresh = await sendMessage({ type: 'GET_STATE' });
+      } catch {
+        /* use held state */
+      }
+      runLockout(ctx, fresh);
+      return;
+    }
+    case 'no-guardian': {
+      view?.destroy();
+      let fresh: FullState = state;
+      try {
+        fresh = await sendMessage({ type: 'GET_STATE' });
+      } catch {
+        /* use held state */
+      }
+      route(ctx, fresh);
+      return;
+    }
   }
-
-  // Fatal blow: show the death moment, then honor the one-last-time redirect.
-  clearApp(app);
-  renderDeath(app, deps);
-  await sleep(DEATH_MS);
-  location.replace(target);
 }
 
 async function doSpare(
-  app: HTMLElement,
-  deps: ScreenSpriteDeps,
-  guiltEngine: SpriteEngine,
-  domain: string,
+  ctx: Ctx,
+  state: FullState,
+  view: SpriteView | null,
 ): Promise<void> {
   try {
-    await sendMessage({ type: 'SPARE', domain });
+    await sendMessage({ type: 'SPARE', domain: ctx.domain });
   } catch {
-    renderError(
-      app,
-      "dodgy couldn't hear you just now. Try reloading, or open settings.",
-    );
+    renderError(ctx.app, "Your guardian couldn't hear you just now. Try reloading, or open settings.");
     return;
   }
 
-  guiltEngine.setState('happy');
+  view?.sprite.setEffect('happy');
   await sleep(SPARED_MS);
 
   if (history.length > 1) {
+    view?.destroy();
     history.back();
     return;
   }
-  // No previous page to return to: rest here with a gentle close hint.
-  clearApp(app);
-  renderSpared(app, deps, false, true);
+  view?.destroy();
+  clearApp(ctx.app);
+  renderSpared(ctx.app, ctx.deps, state.derived.guardian, true);
+}
+
+// --- helpers --------------------------------------------------------------
+
+/**
+ * Find the guardian that just fainted in fresh state. Prefer the same id; else
+ * fall back to the active guardian (revive keeps the same mon guarding).
+ */
+function findGuardianForFaint(
+  fresh: FullState,
+  before: PartyMember | null,
+): PartyMember | null {
+  if (before) {
+    const byId = fresh.state.party.find((m) => m.id === before.id);
+    if (byId) return byId;
+  }
+  return fresh.derived.guardian ?? before;
+}
+
+function guardianName(data: SpeciesData, guardian: PartyMember | null): string {
+  if (!guardian) return 'your guardian';
+  const stage = stageForGuardian(data, guardian);
+  return stage?.name ?? guardian.species;
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 void main();

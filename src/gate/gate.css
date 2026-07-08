@@ -1,17 +1,26 @@
-/* dodgy gate page — calm, cinematic, hand-rolled. No external assets/fonts. */
+/* dodgy gate page — vintage Game Boy / Pokédex re-skin (v1 Pokémon fork).
+   Press Start 2P pixel type, white GB dialog boxes with chunky double black
+   borders, Pokédex-red accents on a dark backdrop. Pixelated sprites/portraits. */
+
+@font-face {
+  font-family: 'Press Start 2P';
+  /* root-absolute works on extension pages (fonts copied to dist/fonts/). */
+  src: url('/fonts/PressStart2P-Regular.ttf') format('truetype');
+  font-display: swap;
+}
 
 :root {
-  --bg-top: #241b33;
-  --bg-mid: #1a1526;
-  --bg-bot: #0d0a14;
-  --ink: #ece7f5;
-  --ink-dim: #a99fc0;
-  --ink-faint: #6f6789;
-  --accent: #b79cff;
-  --danger: #ff8a9c;
-  --spare: #8ff0c2;
-  --panel: rgba(20, 16, 30, 0.72);
-  --panel-border: rgba(183, 156, 255, 0.18);
+  --gb-bg-top: #12131c;
+  --gb-bg-bot: #05060a;
+  --gb-ink: #17181f; /* near-black text on white dialogs */
+  --gb-ink-dim: #4a4d5c;
+  --gb-paper: #f7f7ef; /* GB dialog off-white */
+  --gb-paper-edge: #d9d9cc;
+  --poke-red: #dc0a2d;
+  --poke-red-dk: #a30a24;
+  --spare-green: #2e8b3d;
+  --danger: #c0263a;
+  --heart: #dc0a2d;
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
@@ -29,32 +38,11 @@ body {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
-    Arial, sans-serif;
-  color: var(--ink);
-  background:
-    radial-gradient(
-      120% 80% at 50% 8%,
-      var(--bg-top) 0%,
-      var(--bg-mid) 45%,
-      var(--bg-bot) 100%
-    );
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
-
-/* Soft vignette overlay. */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background: radial-gradient(
-    130% 100% at 50% 45%,
-    transparent 55%,
-    rgba(0, 0, 0, 0.55) 100%
-  );
-  z-index: 2;
+  font-family: 'Press Start 2P', ui-monospace, 'Courier New', monospace;
+  color: var(--gb-ink);
+  background: linear-gradient(160deg, var(--gb-bg-top) 0%, var(--gb-bg-bot) 100%);
+  -webkit-font-smoothing: none;
+  image-rendering: pixelated;
 }
 
 #app {
@@ -62,7 +50,16 @@ body::after {
   inset: 0;
 }
 
-/* The chase canvas fills the viewport and sits above the background. */
+/* Pixelate every sprite/portrait canvas + img. */
+.poke-canvas,
+.poke-portrait,
+#chase-canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* --- Chase surface ------------------------------------------------------- */
+
 #chase-canvas {
   position: fixed;
   inset: 0;
@@ -73,8 +70,6 @@ body::after {
   cursor: crosshair;
 }
 
-/* Chase hint + a11y fallback live above the canvas but ignore pointer events
-   except the button itself. */
 .chase-ui {
   position: fixed;
   inset: 0;
@@ -88,10 +83,11 @@ body::after {
 
 .chase-hint {
   margin-top: 8vh;
-  font-size: 0.95rem;
+  font-size: 10px;
+  line-height: 1.8;
   letter-spacing: 0.02em;
-  color: var(--ink-dim);
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+  color: #e9e9df;
+  text-shadow: 2px 2px 0 #000;
   opacity: 0;
   transform: translateY(-6px);
   transition: opacity 0.9s var(--ease), transform 0.9s var(--ease);
@@ -103,26 +99,24 @@ body::after {
 }
 
 .chase-hint b {
-  color: var(--ink);
-  font-weight: 600;
+  color: #fff;
 }
 
 .give-up {
   pointer-events: auto;
   margin-top: auto;
   margin-bottom: 6vh;
-  background: rgba(20, 16, 30, 0.5);
-  border: 1px solid var(--panel-border);
-  color: var(--ink-dim);
-  font: inherit;
-  font-size: 0.85rem;
-  padding: 0.55rem 1.1rem;
-  border-radius: 999px;
+  font-family: inherit;
+  font-size: 8px;
+  color: #e9e9df;
+  background: #1c1d28;
+  border: 3px solid #000;
+  box-shadow: 0 0 0 3px #e9e9df;
+  padding: 0.7rem 1rem;
   cursor: pointer;
   opacity: 0;
   transform: translateY(8px);
-  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease),
-    color 0.2s, border-color 0.2s;
+  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
 }
 
 .give-up.show {
@@ -131,170 +125,345 @@ body::after {
 }
 
 .give-up:hover {
-  color: var(--ink);
-  border-color: var(--accent);
+  background: var(--poke-red);
+  color: #fff;
 }
 
 .give-up:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-  color: var(--ink);
+  outline: 3px solid var(--poke-red);
+  outline-offset: 4px;
 }
 
-/* Full-screen centered panels for guilt / lockout / spared / death / error. */
+/* --- Screens (centered dialog panels) ----------------------------------- */
+
 .screen {
   position: fixed;
   inset: 0;
   z-index: 5;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 6vh 8vw;
-  text-align: center;
+  padding: 4vh 4vw;
   opacity: 0;
-  transform: translateY(10px) scale(0.985);
-  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
+  transform: translateY(10px);
+  transition: opacity 0.4s var(--ease), transform 0.4s var(--ease);
   pointer-events: none;
 }
 
 .screen.show {
   opacity: 1;
-  transform: translateY(0) scale(1);
+  transform: translateY(0);
   pointer-events: auto;
 }
 
-.screen canvas {
-  display: block;
-  filter: drop-shadow(0 12px 40px rgba(0, 0, 0, 0.5));
-}
-
-.screen h2 {
-  margin: 1.4rem 0 0.5rem;
-  font-size: clamp(1.4rem, 3.2vw, 2.1rem);
-  font-weight: 600;
-  line-height: 1.2;
-  max-width: 22ch;
-}
-
-.screen p {
-  margin: 0.25rem 0;
-  color: var(--ink-dim);
-  font-size: clamp(0.95rem, 1.8vw, 1.1rem);
-  line-height: 1.5;
-  max-width: 34ch;
-}
-
-.screen p.sub {
-  color: var(--ink-faint);
-  font-size: 0.9rem;
-}
-
-.countdown {
-  margin-top: 1.2rem;
-  font-variant-numeric: tabular-nums;
-  font-size: clamp(1.8rem, 5vw, 3rem);
-  font-weight: 300;
-  letter-spacing: 0.08em;
-  color: var(--ink);
-}
-
-/* Hearts row. */
-.hearts {
-  margin-top: 1rem;
+/* The chunky double-bordered GB dialog box. */
+.gb-dialog {
+  position: relative;
+  background: var(--gb-paper);
+  color: var(--gb-ink);
+  border: 4px solid #000;
+  /* box-shadow trick: inner light ring + outer black ring = double frame. */
+  box-shadow:
+    inset 0 0 0 4px var(--gb-paper),
+    inset 0 0 0 8px #000,
+    0 0 0 4px var(--poke-red);
+  padding: 2rem 2rem 1.6rem;
+  max-width: 640px;
+  width: 100%;
+  text-align: center;
   display: flex;
-  gap: 0.35rem;
-  font-size: 1.4rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.gb-dialog canvas {
+  display: block;
+}
+
+.gb-dialog h2 {
+  margin: 0.6rem 0 0.2rem;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--gb-ink);
+  max-width: 26ch;
+}
+
+.gb-dialog p {
+  margin: 0.2rem 0;
+  font-size: 9px;
+  line-height: 1.9;
+  color: var(--gb-ink-dim);
+  max-width: 42ch;
+}
+
+.gb-dialog p.sub {
+  color: #6a6d7a;
+  font-size: 8px;
+}
+
+.gb-hint {
+  color: #7a7d8a !important;
+  font-size: 8px !important;
+  margin-top: 0.4rem !important;
+}
+
+/* --- Type badges -------------------------------------------------------- */
+
+.type-badges {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.type-badge {
+  font-family: inherit;
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  padding: 0.35rem 0.5rem;
+  border: 2px solid #000;
+  border-radius: 2px;
   line-height: 1;
 }
 
+/* --- Hearts ------------------------------------------------------------- */
+
+.hearts {
+  display: flex;
+  gap: 0.3rem;
+  font-size: 18px;
+  line-height: 1;
+  margin-top: 0.3rem;
+}
+
 .hearts .heart {
-  color: var(--danger);
-  filter: drop-shadow(0 1px 4px rgba(255, 138, 156, 0.4));
+  color: var(--heart);
 }
 
 .hearts .heart.empty {
-  color: var(--ink-faint);
-  filter: none;
-  opacity: 0.5;
+  color: #c9c9bd;
 }
 
+/* --- Countdown ---------------------------------------------------------- */
+
+.countdown {
+  margin-top: 0.8rem;
+  font-family: inherit;
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  color: var(--poke-red);
+}
+
+/* --- Buttons ------------------------------------------------------------ */
+
 .actions {
-  margin-top: 2rem;
+  margin-top: 1.2rem;
   display: flex;
-  gap: 1rem;
+  gap: 0.8rem;
   flex-wrap: wrap;
   justify-content: center;
 }
 
 .btn {
-  font: inherit;
-  font-size: 1rem;
-  font-weight: 500;
-  padding: 0.8rem 1.6rem;
-  border-radius: 12px;
-  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: 9px;
+  line-height: 1.6;
+  padding: 0.8rem 1.1rem;
   cursor: pointer;
-  transition: transform 0.15s var(--ease), background 0.2s, border-color 0.2s,
-    box-shadow 0.2s;
+  color: #fff;
+  border: 3px solid #000;
+  box-shadow: 3px 3px 0 #000;
+  transition: transform 0.08s var(--ease), box-shadow 0.08s var(--ease);
 }
 
 .btn:active {
-  transform: translateY(1px) scale(0.99);
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 #000;
 }
 
 .btn:focus-visible {
-  outline: 2px solid var(--ink);
+  outline: 3px solid var(--poke-red);
   outline-offset: 3px;
 }
 
 .btn-continue {
-  background: rgba(255, 138, 156, 0.12);
-  border-color: rgba(255, 138, 156, 0.45);
-  color: var(--danger);
+  background: var(--danger);
 }
 
 .btn-continue:hover {
-  background: rgba(255, 138, 156, 0.2);
-  box-shadow: 0 6px 24px rgba(255, 138, 156, 0.18);
+  background: #d8324a;
 }
 
 .btn-spare {
-  background: rgba(143, 240, 194, 0.14);
-  border-color: rgba(143, 240, 194, 0.5);
-  color: var(--spare);
+  background: var(--spare-green);
 }
 
 .btn-spare:hover {
-  background: rgba(143, 240, 194, 0.22);
-  box-shadow: 0 6px 24px rgba(143, 240, 194, 0.18);
+  background: #37a349;
 }
 
-.link {
-  color: var(--accent);
+.gb-link {
+  color: var(--poke-red);
+  font-size: 9px;
   text-decoration: none;
-  border-bottom: 1px solid rgba(183, 156, 255, 0.4);
-  padding-bottom: 1px;
+  border-bottom: 2px solid var(--poke-red);
 }
 
-.link:hover {
-  border-bottom-color: var(--accent);
-}
-
-.link:focus-visible {
-  outline: 2px solid var(--accent);
+.gb-link:focus-visible {
+  outline: 3px solid var(--poke-red);
   outline-offset: 3px;
 }
 
-.hidden {
-  display: none !important;
+/* --- Faint level readout ------------------------------------------------ */
+
+.faint-level {
+  font-size: 12px !important;
+  color: var(--poke-red) !important;
 }
+
+/* --- Starter pick ------------------------------------------------------- */
+
+.starter-pick {
+  max-width: 820px;
+}
+
+.starter-cards {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+}
+
+.starter-card {
+  font-family: inherit;
+  background: #fffdf4;
+  border: 3px solid #000;
+  box-shadow: 4px 4px 0 #000;
+  padding: 1rem 0.8rem;
+  width: 200px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  transition: transform 0.08s var(--ease), box-shadow 0.08s var(--ease);
+}
+
+.starter-card:hover,
+.starter-card:focus-visible {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--poke-red);
+  outline: none;
+}
+
+.starter-card[aria-checked='true'] {
+  box-shadow: 4px 4px 0 var(--poke-red);
+  border-color: var(--poke-red);
+}
+
+.starter-name {
+  font-size: 11px;
+  color: var(--gb-ink);
+}
+
+.starter-flavor {
+  font-size: 8px !important;
+  line-height: 1.9 !important;
+  color: var(--gb-ink-dim) !important;
+  max-width: 22ch !important;
+}
+
+/* --- Guardian select ---------------------------------------------------- */
+
+.guardian-select {
+  max-width: 520px;
+}
+
+.party-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+  margin-top: 0.6rem;
+}
+
+.party-row {
+  font-family: inherit;
+  background: #fffdf4;
+  border: 3px solid #000;
+  box-shadow: 3px 3px 0 #000;
+  padding: 0.7rem 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  transition: transform 0.08s var(--ease), box-shadow 0.08s var(--ease);
+}
+
+.party-row:hover,
+.party-row:focus-visible {
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 var(--poke-red);
+  outline: none;
+}
+
+.party-portrait {
+  width: 48px;
+  height: 48px;
+}
+
+.party-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  flex: 1;
+}
+
+.party-name {
+  font-size: 10px;
+}
+
+.party-lv {
+  font-size: 8px;
+  color: var(--gb-ink-dim);
+}
+
+/* --- Portraits / name bar ----------------------------------------------- */
+
+.poke-portrait {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+}
+
+.starter-card .poke-portrait {
+  width: 120px;
+  height: 120px;
+}
+
+.name-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  justify-content: center;
+}
+
+.name-bar-name {
+  font-size: 11px;
+}
+
+/* --- Reduced motion ----------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
   .screen,
   .chase-hint,
   .give-up,
-  .btn {
+  .btn,
+  .starter-card,
+  .party-row {
     transition-duration: 0.01ms !important;
   }
 }

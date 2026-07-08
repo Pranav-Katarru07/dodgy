@@ -1,12 +1,21 @@
-import type { SpriteEngine } from '../shared/sprite-engine';
+import type { PokemonSprite } from '../shared/sprite-engine';
 
 /**
- * The chase: dodgy flees the cursor across the full viewport at 60fps.
+ * The chase: the guardian flees the cursor across the full viewport at 60fps.
  *
- * Each frame it steers along normalize(dodgyPos - cursorPos) at the current
- * speed, plus a slowly-drifting wander angle so motion isn't perfectly
- * predictable, clamped to the viewport with soft edge-repulsion so it never
- * corner-pins. Desperate raises base speed and steering snappiness.
+ * Each frame it steers along normalize(pos - cursorPos) at the current speed,
+ * plus a slowly-drifting wander angle so motion isn't perfectly predictable,
+ * clamped to the viewport with soft edge-repulsion so it never corner-pins.
+ * Desperate raises base speed and steering snappiness.
+ *
+ * Sprite integration (v1 Pokémon fork): the motion core is unchanged from v0.4;
+ * only the render surface swapped from the flat SpriteEngine to PokemonSprite:
+ *   - setAnim('walk') while the guardian is moving, 'idle' once the cursor goes
+ *     still (so it stops walking in place when you stop chasing).
+ *   - setDirection(vx, vy) every tick picks the 8-way PMD facing row from the
+ *     current velocity vector (replaces the old setFlipX).
+ *   - setEffect('desperate') is applied once at construction when the guardian
+ *     is low on HP (red tint); the physics desperate speedup constants stay.
  *
  * AUTO-EASE: after {@link EASE_START_MS} of chasing without a catch, speed eases
  * over {@link EASE_DURATION_MS} down to {@link EASE_FLOOR} of base so no one is
@@ -18,10 +27,10 @@ import type { SpriteEngine } from '../shared/sprite-engine';
 
 export interface ChaseOptions {
   canvas: HTMLCanvasElement;
-  engine: SpriteEngine;
+  sprite: PokemonSprite;
   desperate: boolean;
   reducedMotion: boolean;
-  /** Called once, when dodgy is caught by a pointer click. */
+  /** Called once, when the guardian is caught by a pointer click. */
   onCatch: () => void;
   /** Called each time a click misses the sprite (drives the a11y fallback). */
   onMiss?: (missCount: number) => void;
@@ -29,8 +38,8 @@ export interface ChaseOptions {
 
 /** Sprite hitbox radius in CSS px (generous, per spec). */
 const HIT_RADIUS = 64;
-/** Visual sprite scale relative to a 96px frame. */
-const SPRITE_SCALE = 0.95;
+/** Integer draw scale — native PMD frames are ~24-40px; 3× reads well. */
+const SPRITE_SCALE = 3;
 
 const BASE_SPEED = 320; // px/s
 const DESPERATE_SPEED = 470;
@@ -46,10 +55,13 @@ const EASE_FLOOR = 0.4;
 const EDGE_MARGIN = 120;
 const EDGE_FORCE = 900; // px/s^2 near the very edge
 
+/** Speed (px/s) below which the guardian is considered idle (stop walking). */
+const IDLE_SPEED_EPSILON = 8;
+
 export class Chase {
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D | null;
-  private readonly engine: SpriteEngine;
+  private readonly sprite: PokemonSprite;
   private readonly desperate: boolean;
   private readonly reducedMotion: boolean;
   private readonly onCatch: () => void;
@@ -68,6 +80,10 @@ export class Chase {
 
   private cursorX = 0;
   private cursorY = 0;
+  /** Last-observed cursor position, to detect a still cursor → idle anim. */
+  private prevCursorX = 0;
+  private prevCursorY = 0;
+  private cursorStillMs = 0;
 
   private startTime = 0;
   private lastTime = 0;
@@ -75,13 +91,14 @@ export class Chase {
   private rafId = 0;
   private missCount = 0;
   private caught = false;
+  private walking = false;
 
   private dpr = 1;
 
   constructor(opts: ChaseOptions) {
     this.canvas = opts.canvas;
     this.ctx = opts.canvas.getContext('2d');
-    this.engine = opts.engine;
+    this.sprite = opts.sprite;
     this.desperate = opts.desperate;
     this.reducedMotion = opts.reducedMotion;
     this.onCatch = opts.onCatch;
@@ -105,16 +122,21 @@ export class Chase {
     this.y = h * (0.25 + Math.random() * 0.5);
     this.cursorX = w / 2;
     this.cursorY = h / 2;
+    this.prevCursorX = this.cursorX;
+    this.prevCursorY = this.cursorY;
     this.heading = Math.random() * Math.PI * 2;
 
     this.canvas.addEventListener('pointermove', this.onPointerMove);
     this.canvas.addEventListener('pointerdown', this.onPointerDown);
 
-    this.engine.setState('run');
-    this.engine.setScale(SPRITE_SCALE);
+    this.sprite.setScale(SPRITE_SCALE);
+    this.sprite.setAnim('walk');
+    this.walking = true;
+    // Desperate is a persistent tint for the whole low-HP chase.
+    if (this.desperate) this.sprite.setEffect('desperate');
     // We drive rendering ourselves from tick() so we can clear the full-viewport
-    // canvas before each paint (the engine only draws, never clears). Do NOT
-    // call engine.start() here or two rAF loops fight over one canvas.
+    // canvas before each paint (the sprite only draws, never clears). Do NOT
+    // call sprite.start() here or two rAF loops fight over one canvas.
 
     const now = performance.now();
     this.startTime = now;
@@ -129,7 +151,7 @@ export class Chase {
     window.removeEventListener('resize', this.resize);
     this.canvas.removeEventListener('pointermove', this.onPointerMove);
     this.canvas.removeEventListener('pointerdown', this.onPointerDown);
-    this.engine.stop();
+    this.sprite.stop();
     this.ctx?.clearRect(0, 0, window.innerWidth, window.innerHeight);
   }
 
@@ -185,6 +207,18 @@ export class Chase {
     const h = window.innerHeight;
     const elapsed = now - this.startTime;
 
+    // --- Track cursor stillness → idle animation. ---
+    const cursorMoved =
+      Math.abs(this.cursorX - this.prevCursorX) > 0.5 ||
+      Math.abs(this.cursorY - this.prevCursorY) > 0.5;
+    if (cursorMoved) {
+      this.cursorStillMs = 0;
+      this.prevCursorX = this.cursorX;
+      this.prevCursorY = this.cursorY;
+    } else {
+      this.cursorStillMs += dt * 1000;
+    }
+
     // --- Desired flee heading: away from cursor. ---
     let fleeX = this.x - this.cursorX;
     let fleeY = this.y - this.cursorY;
@@ -194,7 +228,7 @@ export class Chase {
     let desiredHeading = Math.atan2(fleeY, fleeX);
 
     // --- Wander: slowly-drifting angular offset (perlin-ish). ---
-    // Desperate dodgy jinks harder and faster; reduced-motion drops wander.
+    // Desperate jinks harder and faster; reduced-motion drops wander.
     if (!this.reducedMotion) {
       const wanderRate = this.wanderRate * (this.desperate ? 1.6 : 1);
       const wanderAmp = this.desperate ? 0.85 : 0.6;
@@ -248,15 +282,26 @@ export class Chase {
       this.heading = Math.atan2(-Math.abs(this.vy), this.vx);
     }
 
-    // Face travel direction. Sprite art faces right by default; flip when
-    // moving left.
-    this.engine.setFlipX(this.vx < 0);
-    this.engine.setPosition(this.x, this.y);
+    // --- Sprite: walk vs idle by whether the cursor is actively chasing, and
+    // face the current travel vector. When the cursor is still for a beat the
+    // guardian settles into 'idle' (no in-place walking); otherwise it walks and
+    // its facing row follows velocity. ---
+    const movingFast = vlen > IDLE_SPEED_EPSILON;
+    const shouldWalk = movingFast && this.cursorStillMs < 400;
+    if (shouldWalk !== this.walking) {
+      this.walking = shouldWalk;
+      this.sprite.setAnim(shouldWalk ? 'walk' : 'idle');
+    }
+    if (shouldWalk) {
+      // Point along velocity (setDirection ignores a zero vector).
+      this.sprite.setDirection(this.vx, this.vy);
+    }
+    this.sprite.setPosition(this.x, this.y);
 
     // Clear the full viewport, then paint one frame ourselves so the sprite
     // doesn't smear a trail across the canvas as it moves.
     this.ctx?.clearRect(0, 0, w, h);
-    this.engine.renderFrame();
+    this.sprite.renderFrame();
 
     this.rafId = requestAnimationFrame(this.tick);
   };

@@ -8,7 +8,16 @@ type NumericKey = {
   [K in keyof Settings]: Settings[K] extends number ? K : never;
 }[keyof Settings];
 
-interface FieldSpec {
+/** Text settings keys (the string-valued fields of Settings). */
+type TextKey = {
+  [K in keyof Settings]: Settings[K] extends string ? K : never;
+}[keyof Settings];
+
+/** Any editable field key rendered by the form. */
+type FieldKey = NumericKey | TextKey;
+
+interface NumberFieldSpec {
+  kind: 'number';
   key: NumericKey;
   label: string;
   explain: string;
@@ -16,44 +25,102 @@ interface FieldSpec {
   min: number;
 }
 
+interface TextFieldSpec {
+  kind: 'text';
+  key: TextKey;
+  label: string;
+  explain: string;
+  /** Inclusive maximum character length after trimming. */
+  maxLen: number;
+}
+
+type FieldSpec = NumberFieldSpec | TextFieldSpec;
+
+// Field order mirrors PRD §11 + Phase 3C: pokedexTitle first, then the shared
+// v0.4 numerics, then the v1 numerics. lockoutHours and levelsPerEvolution are
+// deprecated and intentionally NOT rendered (they pass through untouched on
+// Save via the working-copy spread).
 const FIELD_SPECS: readonly FieldSpec[] = [
   {
+    kind: 'text',
+    key: 'pokedexTitle',
+    label: 'Pokédex title',
+    explain: 'Name shown across the top of your Pokédex screen.',
+    maxLen: 24,
+  },
+  {
+    kind: 'number',
     key: 'maxHp',
     label: 'Max HP',
     explain:
-      "dodgy's full health — how many push-throughs in one day it takes to kill dodgy.",
+      "Your guardian's full health — how many push-throughs in one day it takes to faint it.",
     min: 1,
   },
   {
+    kind: 'number',
     key: 'damagePerEntry',
     label: 'Damage per entry',
-    explain: 'HP dodgy loses each time you push past the block.',
+    explain: 'HP your guardian loses each time you push past the block.',
     min: 1,
   },
   {
+    kind: 'number',
     key: 'levelUpThreshold',
     label: 'Level-up threshold',
     explain:
-      'dodgy grows on any day you push through fewer than this many times.',
+      'Your guardian gains a level on any day you push through fewer than this many times.',
     min: 1,
   },
   {
-    key: 'levelsPerEvolution',
-    label: 'Levels per evolution',
-    explain: 'How many levels between each evolution into a new form.',
-    min: 1,
-  },
-  {
+    kind: 'number',
     key: 'graceMinutes',
     label: 'Grace minutes',
     explain:
-      'After paying, the site stays open this long before dodgy re-guards it.',
+      'After paying, the site stays open this long before your guardian re-guards it.',
     min: 0,
   },
   {
-    key: 'lockoutHours',
-    label: 'Lockout hours',
-    explain: 'If dodgy dies, every blocked site stays locked for this long.',
+    kind: 'number',
+    key: 'starterLevel',
+    label: 'Starter level',
+    explain: 'Level a freshly-picked starter or newly-hatched egg begins at.',
+    min: 1,
+  },
+  {
+    kind: 'number',
+    key: 'faintLevelPenalty',
+    label: 'Faint level penalty',
+    explain: 'Levels lost when your guardian faints (it never devolves).',
+    min: 0,
+  },
+  {
+    kind: 'number',
+    key: 'faintStreakToPermadeath',
+    label: 'Faints to permadeath',
+    explain:
+      'Consecutive faints before your guardian is gone for good — a clean guarding day resets the streak.',
+    min: 1,
+  },
+  {
+    kind: 'number',
+    key: 'baseReward',
+    label: 'Base reward',
+    explain: 'PokéCoins earned for a full day your guardian survives untouched.',
+    min: 0,
+  },
+  {
+    kind: 'number',
+    key: 'eggCost',
+    label: 'Egg cost',
+    explain: 'PokéCoins one species egg costs at the shop.',
+    min: 1,
+  },
+  {
+    kind: 'number',
+    key: 'daysToHatch',
+    label: 'Days to hatch',
+    explain:
+      "Clean days needed to hatch an egg — messy days don't reset progress.",
     min: 1,
   },
 ];
@@ -79,9 +146,9 @@ const resetBtn = byId<HTMLButtonElement>('reset-blocklist-btn');
 const saveBtn = byId<HTMLButtonElement>('save-btn');
 const savedRegion = byId<HTMLSpanElement>('saved-region');
 
-/** Live registry of the numeric inputs, keyed by setting. */
-const inputs = new Map<NumericKey, HTMLInputElement>();
-const errorEls = new Map<NumericKey, HTMLElement>();
+/** Live registry of the field inputs, keyed by setting. */
+const inputs = new Map<FieldKey, HTMLInputElement>();
+const errorEls = new Map<FieldKey, HTMLElement>();
 
 // ---------------------------------------------------------------------------
 // Field construction
@@ -108,12 +175,19 @@ function buildFields(): void {
     explain.textContent = spec.explain;
 
     const input = document.createElement('input');
-    input.type = 'number';
     input.id = inputId;
-    input.step = '1';
-    input.min = String(spec.min);
-    input.inputMode = 'numeric';
     input.setAttribute('aria-describedby', errorId);
+
+    if (spec.kind === 'number') {
+      input.type = 'number';
+      input.step = '1';
+      input.min = String(spec.min);
+      input.inputMode = 'numeric';
+    } else {
+      input.type = 'text';
+      input.maxLength = spec.maxLen;
+      input.autocomplete = 'off';
+    }
 
     const error = document.createElement('p');
     error.className = 'error';
@@ -134,40 +208,52 @@ function buildFields(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Validation (mirrors the service worker: integers, per-field minimums)
+// Validation (mirrors the service worker's validateSettings)
 // ---------------------------------------------------------------------------
 
 /** Validate one field, update aria/error UI, and return whether it's valid. */
 function validateField(spec: FieldSpec): boolean {
   const input = inputs.get(spec.key)!;
   const error = errorEls.get(spec.key)!;
-  const raw = input.value.trim();
 
   let message = '';
-  if (raw === '') {
-    message = 'Enter a whole number.';
+  if (spec.kind === 'number') {
+    const raw = input.value.trim();
+    if (raw === '') {
+      message = 'Enter a whole number.';
+    } else {
+      const value = Number(raw);
+      if (!Number.isInteger(value)) {
+        message = 'Must be a whole number.';
+      } else if (value < spec.min) {
+        message = `Must be at least ${spec.min}.`;
+      }
+    }
+    if (message === '') {
+      // Only stage a value we know is a clean integer.
+      working[spec.key] = Number(raw);
+    }
   } else {
-    const value = Number(raw);
-    if (!Number.isInteger(value)) {
-      message = 'Must be a whole number.';
-    } else if (value < spec.min) {
-      message = `Must be at least ${spec.min}.`;
+    const trimmed = input.value.trim();
+    if (trimmed === '') {
+      message = 'Enter a title.';
+    } else if (trimmed.length > spec.maxLen) {
+      message = `Must be ${spec.maxLen} characters or fewer.`;
+    }
+    if (message === '') {
+      // Stage the trimmed title so it matches what the SW will persist.
+      working[spec.key] = trimmed;
     }
   }
 
   const valid = message === '';
-  if (valid) {
-    // Only stage a value we know is a clean integer.
-    working[spec.key] = Number(raw);
-  }
-
   input.setAttribute('aria-invalid', valid ? 'false' : 'true');
   error.textContent = message;
   error.classList.toggle('visible', !valid);
   return valid;
 }
 
-/** True only when every numeric field currently validates. */
+/** True only when every field currently validates. */
 function allValid(): boolean {
   let ok = true;
   for (const spec of FIELD_SPECS) {
@@ -190,6 +276,7 @@ function renderBlocklist(): void {
 
   if (working.blocklist.length === 0) {
     const li = document.createElement('li');
+    li.className = 'empty-row';
     const span = document.createElement('span');
     span.className = 'empty';
     span.textContent = 'No sites blocked.';
@@ -202,6 +289,7 @@ function renderBlocklist(): void {
     const li = document.createElement('li');
 
     const name = document.createElement('span');
+    name.className = 'domain';
     name.textContent = domain;
 
     const remove = document.createElement('button');
@@ -244,7 +332,7 @@ function handleAddDomain(): void {
 
 async function handleResetBlocklist(): Promise<void> {
   const confirmed = window.confirm(
-    'Reset the blocklist to dodgy’s defaults? This saves immediately.',
+    'Reset the blocklist to the default set? This saves immediately.',
   );
   if (!confirmed) return;
   const full = await sendMessage({ type: 'RESET_BLOCKLIST' });
@@ -264,6 +352,9 @@ async function handleSave(event: SubmitEvent): Promise<void> {
     return;
   }
   saveBtn.disabled = true;
+  // `working` is the stored Settings spread + our edited fields, so the frozen
+  // deprecated fields (lockoutHours / levelsPerEvolution) pass through unchanged
+  // from what GET_STATE returned. UPDATE_SETTINGS still sends the full object.
   const full = await sendMessage({ type: 'UPDATE_SETTINGS', settings: working });
   render(full);
 
@@ -282,7 +373,8 @@ async function handleSave(event: SubmitEvent): Promise<void> {
 
 /** Re-render the whole form from an authoritative FullState. */
 function render(full: FullState): void {
-  // Fresh working copy so staged edits don't leak across renders.
+  // Fresh working copy so staged edits don't leak across renders. The full
+  // spread carries the deprecated fields through untouched.
   working = { ...full.settings, blocklist: [...full.settings.blocklist] };
 
   for (const spec of FIELD_SPECS) {
