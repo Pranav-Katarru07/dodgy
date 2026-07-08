@@ -1,9 +1,10 @@
 // Storage module over chrome.storage.local. Serializes concurrent mutations
 // with a promise-chain mutex, because an MV3 service worker can receive
 // overlapping messages and must not interleave read-modify-write cycles.
-import type { Settings, PetState } from '../shared/types';
+import type { Settings, GameState } from '../shared/types';
 import { DEFAULT_SETTINGS, STORAGE_KEYS } from '../shared/constants';
 import { freshState } from './state';
+import { migrateStorage } from './migrate';
 
 export async function loadSettings(): Promise<Settings> {
   const got = await chrome.storage.local.get(STORAGE_KEYS.settings);
@@ -11,9 +12,9 @@ export async function loadSettings(): Promise<Settings> {
   return raw ?? DEFAULT_SETTINGS;
 }
 
-export async function loadState(): Promise<PetState | null> {
+export async function loadState(): Promise<GameState | null> {
   const got = await chrome.storage.local.get(STORAGE_KEYS.state);
-  const raw = got[STORAGE_KEYS.state] as PetState | undefined;
+  const raw = got[STORAGE_KEYS.state] as GameState | undefined;
   return raw ?? null;
 }
 
@@ -21,7 +22,7 @@ export async function saveSettings(s: Settings): Promise<void> {
   await chrome.storage.local.set({ [STORAGE_KEYS.settings]: s });
 }
 
-export async function saveState(s: PetState): Promise<void> {
+export async function saveState(s: GameState): Promise<void> {
   await chrome.storage.local.set({ [STORAGE_KEYS.state]: s });
 }
 
@@ -36,9 +37,9 @@ let queue: Promise<unknown> = Promise.resolve();
  * calls `fn`, persists whatever it returns, and resolves with `result`.
  */
 export function mutate<T>(
-  fn: (ctx: { settings: Settings; state: PetState }) => Promise<{
+  fn: (ctx: { settings: Settings; state: GameState }) => Promise<{
     settings?: Settings;
-    state?: PetState;
+    state?: GameState;
     result: T;
   }>,
 ): Promise<T> {
@@ -67,10 +68,13 @@ export function mutate<T>(
 }
 
 /**
- * Ensure both storage keys exist. Idempotent: safe to call on every install and
- * startup.
+ * Ensure both storage keys exist. Runs the v0.4 → v1 migration first (idempotent),
+ * then fills any still-missing key with defaults / freshState. Safe to call on
+ * every install and startup.
  */
 export async function ensureInitialized(): Promise<void> {
+  await migrateStorage(Date.now());
+
   const got = await chrome.storage.local.get([STORAGE_KEYS.settings, STORAGE_KEYS.state]);
   const settings = (got[STORAGE_KEYS.settings] as Settings | undefined) ?? DEFAULT_SETTINGS;
   if (got[STORAGE_KEYS.settings] === undefined) {

@@ -15,6 +15,27 @@ Then load the built extension:
 2. Enable **Developer mode** (top-right).
 3. Click **Load unpacked** and select the `dist/` directory.
 
+## Assets
+
+The Pokémon-themed build needs sprite sheets, portraits, and species data that are **not checked into this repo**. Fetch them once, before your first build:
+
+```bash
+npm run assets
+```
+
+This runs `scripts/fetch-assets.mjs`, which downloads everything into `public/assets/pokemon/` (gitignored):
+
+- **Species data** (names, types, dex flavor text, evolution levels) from [PokéAPI](https://pokeapi.co/), baked into a static `species.json`.
+- **Pokédex portraits** from [PokéAPI/sprites](https://github.com/PokeAPI/sprites) (HGSS gen-IV art, with a fallback to the default sprite).
+- **Overworld walk/idle sprite sheets** from [PMD SpriteCollab](https://sprites.pmdcollab.org/) ([GitHub](https://github.com/PMDCollab/SpriteCollab)).
+- An auto-generated `CREDITS.md` listing every sprite contributor plus data/font sources.
+
+The fetch is idempotent (re-run any time; add `--force` to re-download) and never runs at extension runtime — the extension makes **zero** network calls. `npm run build` and `npm run dev` are gated by `scripts/check-assets.mjs`, which verifies the tree offline and, if it's missing, tells you to run `npm run assets`. Vite copies `public/assets/**` into `dist/assets/**`, so `CREDITS.md` ships alongside the packaged art.
+
+**Why gitignored:** these are fan-sourced assets, so no Nintendo IP lives in the public repo. The `public/fonts/` directory (Press Start 2P) *is* committed, because it's licensed under the SIL Open Font License, not Nintendo IP.
+
+**Non-affiliation:** this is a fan-made project for personal, non-commercial use. It is not affiliated with, sponsored by, or endorsed by Nintendo, Game Freak, or The Pokémon Company.
+
 ## How it works
 
 A background service worker owns all state (HP, level, lockout, grace passes) and is the single source of truth. Blocked navigations are intercepted **before load** by `declarativeNetRequest` dynamic rules (one redirect rule per blocked domain, subdomain-inclusive, `main_frame` only) and redirected to a full-screen extension **gate page**, so there's no flash of the target site and no fighting hostile third-party CSP.
