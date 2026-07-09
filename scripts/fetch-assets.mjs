@@ -94,6 +94,12 @@ const LINES = [
   },
 ];
 
+// UI-only icons: Pokémon whose portrait we ship purely as chrome (not guardian
+// species, so they are NOT added to species.json / LINES / evolution data). We
+// fetch ONLY the portrait for each.
+//   - Klefki (#707): the key/gear Pokémon, used as the settings button icon.
+const UI_ICONS = [{ dex: 707, name: 'Klefki' }];
+
 const FORCE = process.argv.includes('--force');
 const VERBOSE = process.argv.includes('--verbose');
 
@@ -181,6 +187,30 @@ async function fetchBufferFallback(urls) {
     }
   }
   throw new Error(`all fallbacks failed:\n    ${errs.join('\n    ')}`);
+}
+
+/**
+ * Fetch a Pokémon portrait PNG (HGSS preferred, default sprite fallback) to
+ * `dest`, unless it already exists (skipped unless --force). Idempotent and
+ * covered by fetchWithRetry via fetchBuffer. On failure pushes to `missing`.
+ * Shared by the guardian stages and the UI-only icons.
+ */
+async function fetchPortrait(dex, dest, label) {
+  if (!FORCE && (await exists(dest))) {
+    vlog(`${label} portrait: exists`);
+    return;
+  }
+  try {
+    const { buf, url } = await fetchBufferFallback([
+      `${SPRITES_RAW}/versions/generation-iv/heartgold-soulsilver/${dex}.png`,
+      `${SPRITES_RAW}/${dex}.png`,
+    ]);
+    await writeFile(dest, buf);
+    if (url.includes('heartgold-soulsilver')) vlog(`${label} portrait: HGSS`);
+    else vlog(`${label} portrait: default fallback (no HGSS)`);
+  } catch (err) {
+    missing.push(`${label} portrait.png: ${err.message}`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -518,22 +548,7 @@ async function main() {
       }
 
       // --- Portrait (HGSS preferred, default fallback) ---
-      const portraitDest = join(stageDir, 'portrait.png');
-      if (FORCE || !(await exists(portraitDest))) {
-        try {
-          const { buf, url } = await fetchBufferFallback([
-            `${SPRITES_RAW}/versions/generation-iv/heartgold-soulsilver/${stage.dex}.png`,
-            `${SPRITES_RAW}/${stage.dex}.png`,
-          ]);
-          await writeFile(portraitDest, buf);
-          if (url.includes('heartgold-soulsilver')) vlog(`${label} portrait: HGSS`);
-          else vlog(`${label} portrait: default fallback (no HGSS)`);
-        } catch (err) {
-          missing.push(`${label} portrait.png: ${err.message}`);
-        }
-      } else {
-        vlog(`${label} portrait: exists`);
-      }
+      await fetchPortrait(stage.dex, join(stageDir, 'portrait.png'), label);
 
       // --- PMD SpriteCollab: AnimData.xml + Walk/Idle sheets + credits ---
       const pmdBase = `${PMD_RAW}/sprite/${d4}`;
@@ -635,6 +650,19 @@ async function main() {
     }
 
     linesOut.push({ id: line.id, stages: stagesOut });
+  }
+
+  // --- UI-only icons (portrait only; NOT part of species.json) ---
+  if (UI_ICONS.length > 0) {
+    log('\nUI icons');
+    for (const icon of UI_ICONS) {
+      const label = `#${icon.dex} ${icon.name}`;
+      const d4 = dex4(icon.dex);
+      const iconDir = join(OUT_DIR, d4);
+      await mkdir(iconDir, { recursive: true });
+      log(`  ${label} (UI icon)`);
+      await fetchPortrait(icon.dex, join(iconDir, 'portrait.png'), label);
+    }
   }
 
   // --- Font (committed) ---

@@ -59,6 +59,7 @@ const subScreenEl = byId<HTMLDivElement>('sub-screen');
 
 const homeBtn = byId<HTMLButtonElement>('home-btn');
 const gearBtn = byId<HTMLButtonElement>('gear-btn');
+const gearIcon = byId<HTMLImageElement>('gear-icon');
 const cancelBtn = byId<HTMLButtonElement>('cancel-btn');
 const confirmBtn = byId<HTMLButtonElement>('confirm-btn');
 const dpadUp = byId<HTMLButtonElement>('dpad-up');
@@ -493,11 +494,36 @@ function onKeyDown(e: KeyboardEvent): void {
       e.preventDefault();
       cancel();
       break;
+    case 'Backspace':
+      // Mirror the red ✕ (cancel/back). preventDefault so Backspace doesn't
+      // trigger browser back/history navigation in the popup context.
+      e.preventDefault();
+      cancel();
+      break;
+  }
+}
+
+/**
+ * Point the settings button at Klefki's portrait (UI-only icon, dex 707). If the
+ * image ever fails to load, fall back to the ⚙ glyph so the button never renders
+ * empty. Mirrors the never-throw handling used for the other portraits.
+ */
+function setupGearIcon(): void {
+  gearIcon.addEventListener('error', () => {
+    gearBtn.classList.add('fallback');
+    gearBtn.textContent = '⚙';
+  });
+  try {
+    gearIcon.src = chrome.runtime.getURL('assets/pokemon/0707/portrait.png');
+  } catch {
+    gearBtn.classList.add('fallback');
+    gearBtn.textContent = '⚙';
   }
 }
 
 async function init(): Promise<void> {
   // Wire controls.
+  setupGearIcon();
   homeBtn.addEventListener('click', goHome);
   gearBtn.addEventListener('click', () => void chrome.runtime.openOptionsPage());
   confirmBtn.addEventListener('click', () => void confirm());

@@ -160,31 +160,37 @@ canvas {
   text-overflow: ellipsis;
 }
 
-.home-ball {
+/* Settings button (Klefki icon) — lives top-right in the .topbar. */
+.gear-btn {
   appearance: none;
   flex: 0 0 auto;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
   border: 3px solid var(--outline);
-  background: linear-gradient(#f24 0 50%, #fff 50% 100%);
-  position: relative;
+  background: var(--dex-red-dark);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
   cursor: pointer;
-  padding: 0;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
-.home-ball::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #fff;
-  border: 3px solid var(--outline);
-  transform: translate(-50%, -50%);
+.gear-btn .gear-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  display: block;
 }
-.home-ball:focus-visible {
+/* When the icon fails to load, popup.ts swaps in the ⚙ glyph as text. */
+.gear-btn.fallback .gear-icon {
+  display: none;
+}
+.gear-btn:focus-visible {
   outline: 3px solid #fff;
   outline-offset: 2px;
 }
@@ -253,6 +259,17 @@ canvas {
   font-size: 6px;
   color: var(--bezel-dark);
   letter-spacing: 0.5px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Reserve a top strip so per-mode content never renders under the absolutely
+ * positioned .mode-label (which sits at top:4px). This holds uniformly for
+ * every mode instead of each screen fighting the label individually. The wrapper
+ * fills the remaining screen height so modes that use height:100% still work. */
+#screen-content {
+  height: 100%;
+  padding-top: 14px;
 }
 
 /* --- Name bar (dark green LCD) ----------------------------------------- */
@@ -295,13 +312,13 @@ canvas {
   border: 3px solid var(--outline);
   border-radius: 4px;
   padding: 8px;
-  height: 56px;
-  overflow: hidden;
+  min-height: 56px;
   color: var(--lcd-green-dark);
   font-size: 8px;
   line-height: 1.6;
   display: flex;
   align-items: center;
+  overflow-wrap: anywhere;
 }
 .sub-screen .countdown {
   font-size: 11px;
@@ -410,22 +427,38 @@ canvas {
   outline-offset: 2px;
 }
 
-.gear-btn {
+/* Decorative Pokéball home button — lives in the .controls row (returns to
+ * Guardian view). Sits between the D-pad and the action buttons. */
+.home-ball {
   appearance: none;
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  border: 2px solid var(--outline);
-  background: var(--dex-red-dark);
-  color: #fff;
-  font-size: 12px;
-  cursor: pointer;
   flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid var(--outline);
+  background: linear-gradient(#f24 0 50%, #fff 50% 100%);
+  position: relative;
+  cursor: pointer;
   padding: 0;
 }
-.gear-btn:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: 1px;
+.home-ball::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--outline);
+  transform: translate(-50%, -50%);
+}
+.home-ball:active {
+  filter: brightness(0.9);
+}
+.home-ball:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
 }
 
 /* ===========================================================================

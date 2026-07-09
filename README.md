@@ -1,14 +1,16 @@
 # dodgy
 
-**dodgy** is a Chrome (Manifest V3) extension that deters distracting-website use through an emotional commitment device — now with a Pokémon guardian.
+> *Ah, a new trainer! The web is full of tall grass — distracting sites lurk there, ready to swallow your afternoon. But you won't be walking through it alone.*
 
-You pick a starter (Charmander, Squirtle, or Bulbasaur). It becomes your **guardian**: when you try to open a blocked site, it appears and flees your cursor across the screen. To get through you must catch it with a single click, then look it in the eye and confirm — every push-through costs 1 HP.
+**dodgy** is a Chrome (Manifest V3) extension that deters distracting-website use through an emotional commitment device — with a Pokémon guardian at your side. Your only rival here is your own dopamine.
+
+You pick a starter (Charmander, Squirtle, or Bulbasaur). It becomes your **guardian**: when you try to open a blocked site, it appears and flees your cursor across the screen. To get through you must catch it with a single click, then look it in the eye and confirm — every push-through costs 1 HP. Restraint is the real training here.
 
 The stakes go up from there:
 
 - **Restraint grows your guardian.** Any day you push through fewer than a few times, the active guardian gains a level toward **real evolution thresholds** and you earn **PokéCoins**.
 - **Coins buy eggs.** Spend coins in the shop on a species egg, incubate it over clean days, and hatch it into your party.
-- **Drain its HP to 0 and it faints.** A fainted guardian loses levels (never devolving) and every blocked site locks out until local midnight. **Three faints in a row is permadeath** — that Pokémon is gone for good.
+- **Drain its HP to 0 and it faints.** A fainted guardian loses levels (never devolving) and every blocked site locks out until local midnight. **Three faints in a row is permadeath** — that Pokémon is gone for good. Train responsibly.
 
 Your progress lives in the **Dodgédex** — a Pokédex-styled toolbar popup showing your guardian, HP, evolution progress, coins, egg incubation, and party. dodgy is an honor-system nudge, not a technical wall.
 
@@ -26,7 +28,9 @@ Then load the built extension:
 2. Enable **Developer mode** (top-right).
 3. Click **Load unpacked** and select the `dist/` directory.
 
-On first run, opening a blocked site prompts you to pick your free starter.
+### Choose your first partner
+
+On first run, opening a blocked site prompts you to pick your free starter — Charmander, Squirtle, or Bulbasaur. Choose well; it's yours from here.
 
 ## Assets
 
@@ -49,7 +53,7 @@ The fetch is idempotent (re-run any time; add `--force` to re-download) and neve
 
 **Credits & IP:** every sprite contributor and data/font source is listed in the generated `CREDITS.md`, which ships in `dist/assets/pokemon/CREDITS.md` after a build. This is a fan-made project for **personal, non-commercial use** — it is not affiliated with, sponsored by, or endorsed by Nintendo, Game Freak, or The Pokémon Company. Nothing in the engine depends on the sprites being Pokémon; the mechanics reskin to original creatures if you ever want to publish.
 
-## How it works
+## How it works (behind the gym doors)
 
 A background service worker owns all state (HP, level, lockout, grace passes) and is the single source of truth. Blocked navigations are intercepted **before load** by `declarativeNetRequest` dynamic rules (one redirect rule per blocked domain, subdomain-inclusive, `main_frame` only) and redirected to a full-screen extension **gate page**, so there's no flash of the target site and no fighting hostile third-party CSP.
 
@@ -67,9 +71,9 @@ Four product decisions govern the mechanics:
 
 At local midnight, HP resets to full. If the completed day had fewer than `levelUpThreshold` paid entries, the active guardian gains a level (auto-evolving when it crosses a species threshold), any incubating egg advances one day, and you earn PokéCoins scaled by restraint. Only one guardian may take damage per day; you can switch guardians only *before* the day's first push-through.
 
-## Settings
+## Settings (your Trainer Card)
 
-Open the extension's options page (gear icon in the Dodgédex popup) to edit:
+Open the extension's options page (gear icon in the Dodgédex popup) to tune the rules your guardian lives by:
 
 - **Pokédex title** — the label shown across the top of your popup (default *Dodgédex*).
 - **Max HP** — push-throughs it takes to faint the guardian in one day (lowering this clamps current HP down).

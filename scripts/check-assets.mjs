@@ -23,6 +23,9 @@ const REPO_ROOT = resolve(__dirname, '..');
 const ASSET_ROOT = join(REPO_ROOT, 'public', 'assets');
 const SPECIES_JSON = join(ASSET_ROOT, 'pokemon', 'species.json');
 
+// UI-only icon portraits (not part of species.json, but must still ship).
+const UI_ICON_URLS = ['assets/pokemon/0707/portrait.png'];
+
 /** Resolve a packaged asset url (e.g. 'assets/pokemon/0004/walk.png') to disk. */
 function assetPath(url) {
   return join(REPO_ROOT, 'public', url);
@@ -86,6 +89,14 @@ async function main() {
           problems.push(`${line.id}/${stage.name}: file not found — ${url}`);
         }
       }
+    }
+  }
+
+  // UI-only icons (e.g. Klefki #707 settings button) — verified by path since
+  // they are intentionally absent from species.json.
+  for (const url of UI_ICON_URLS) {
+    if (!(await exists(assetPath(url)))) {
+      problems.push(`UI icon file not found — ${url}`);
     }
   }
 
