@@ -98,7 +98,7 @@ const LINES = [
 // species, so they are NOT added to species.json / LINES / evolution data). We
 // fetch ONLY the portrait for each.
 //   - Klefki (#707): the key/gear Pokémon, used as the settings button icon.
-const UI_ICONS = [{ dex: 707, name: 'Klefki' }];
+const UI_ICONS = [{ dex: 600, name: 'Klang' }];
 
 const FORCE = process.argv.includes('--force');
 const VERBOSE = process.argv.includes('--verbose');
