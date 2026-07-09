@@ -1,6 +1,6 @@
 # dodgy
 
-> *Ah, a new trainer! The web is full of tall grass — distracting sites lurk there, ready to swallow your afternoon. But you won't be walking through it alone.*
+> *Ah, an explorer! Or should I say... trainer. The web is full of tall grass — distracting sites lurk there, ready to swallow your afternoon. But you won't be walking through it alone.*
 
 **dodgy** is a Chrome (Manifest V3) extension that deters distracting-website use through an emotional commitment device — with a Pokémon guardian at your side. Your only rival here is your own dopamine.
 
