@@ -196,8 +196,8 @@ canvas {
 .gear-btn .gear-icon {
   /* Fill the button; the Klang sprite has its own transparent margin, so a
      slight scale-up makes the gears read at this size. */
-  width: 132%;
-  height: 132%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   image-rendering: pixelated;
   display: block;

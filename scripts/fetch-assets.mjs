@@ -28,6 +28,7 @@ import { constants as FS } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Buffer } from 'node:buffer';
+import zlib from 'node:zlib';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -209,19 +210,36 @@ async function fetchBufferFallback(urls) {
  * covered by fetchWithRetry via fetchBuffer. On failure pushes to `missing`.
  * Shared by the guardian stages and the UI-only icons.
  */
-async function fetchPortrait(dex, dest, label) {
-  if (!FORCE && (await exists(dest))) {
+async function fetchPortrait(dex, dest, label, { crop = false } = {}) {
+  // When `crop` is set, always re-derive from source so an already-cropped RGBA
+  // output on disk can be regenerated idempotently without --force.
+  if (!FORCE && !crop && (await exists(dest))) {
     vlog(`${label} portrait: exists`);
     return;
+  }
+  if (crop && !FORCE && (await exists(dest))) {
+    // A previous run already produced the cropped RGBA output — leave it.
+    try {
+      const existing = await readFile(dest);
+      // IHDR data starts at byte 16; colorType is byte 9 of it → absolute 25.
+      // colorType 6 (RGBA) means a prior run already cropped+re-encoded it.
+      if (existing.length > 25 && existing.readUInt8(25) === 6) {
+        vlog(`${label} portrait: exists (cropped)`);
+        return;
+      }
+    } catch {
+      /* fall through and re-fetch */
+    }
   }
   try {
     const { buf, url } = await fetchBufferFallback([
       `${SPRITES_RAW}/versions/generation-iv/heartgold-soulsilver/${dex}.png`,
       `${SPRITES_RAW}/${dex}.png`,
     ]);
-    await writeFile(dest, buf);
-    if (url.includes('heartgold-soulsilver')) vlog(`${label} portrait: HGSS`);
-    else vlog(`${label} portrait: default fallback (no HGSS)`);
+    const out = crop ? cropTransparentPng(buf, 2) : buf;
+    await writeFile(dest, out);
+    const via = url.includes('heartgold-soulsilver') ? 'HGSS' : 'default fallback (no HGSS)';
+    vlog(`${label} portrait: ${via}${crop && out !== buf ? ' (cropped)' : ''}`);
   } catch (err) {
     missing.push(`${label} portrait.png: ${err.message}`);
   }
@@ -261,6 +279,167 @@ function pngSize(buf) {
   const width = buf.readUInt32BE(16);
   const height = buf.readUInt32BE(20);
   return { width, height };
+}
+
+// ---------------------------------------------------------------------------
+// Transparent-margin crop (no image library) — used for UI icons so a small
+// sprite centred in a large transparent frame (e.g. the 96×96 Klang portrait,
+// content only ~58×50) fills its button instead of rendering tiny.
+// ---------------------------------------------------------------------------
+
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function crc32(buf) {
+  let c = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type, data) {
+  const len = Buffer.alloc(4);
+  len.writeUInt32BE(data.length, 0);
+  const tb = Buffer.from(type, 'ascii');
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(Buffer.concat([tb, data])), 0);
+  return Buffer.concat([len, tb, data, crc]);
+}
+
+/** Decode a palette (colorType 3, bit depth 1/2/4/8) PNG to index accessors. */
+function decodePalettePng(buf) {
+  let p = 8;
+  let ihdr, plte, trns;
+  const idat = [];
+  while (p < buf.length) {
+    const len = buf.readUInt32BE(p);
+    const type = buf.toString('ascii', p + 4, p + 8);
+    const data = buf.subarray(p + 8, p + 8 + len);
+    if (type === 'IHDR') ihdr = data;
+    else if (type === 'PLTE') plte = data;
+    else if (type === 'tRNS') trns = data;
+    else if (type === 'IDAT') idat.push(data);
+    p += 12 + len;
+  }
+  const w = ihdr.readUInt32BE(0);
+  const h = ihdr.readUInt32BE(4);
+  const bitDepth = ihdr[8];
+  const colorType = ihdr[9];
+  if (colorType !== 3) throw new Error(`crop: expected palette PNG (colorType 3), got ${colorType}`);
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const perByte = 8 / bitDepth;
+  const stride = Math.ceil(w / perByte);
+  // Undo PNG row filters (palette indices are 1 byte-lane, so filtering is byte-wise).
+  const out = Buffer.alloc(h * stride);
+  for (let y = 0; y < h; y++) {
+    const ft = raw[y * (stride + 1)];
+    const rs = y * (stride + 1) + 1;
+    for (let x = 0; x < stride; x++) {
+      const rb = raw[rs + x];
+      const a = x >= 1 ? out[y * stride + x - 1] : 0;
+      const b = y >= 1 ? out[(y - 1) * stride + x] : 0;
+      const c = x >= 1 && y >= 1 ? out[(y - 1) * stride + x - 1] : 0;
+      let v;
+      switch (ft) {
+        case 1: v = rb + a; break;
+        case 2: v = rb + b; break;
+        case 3: v = rb + ((a + b) >> 1); break;
+        case 4: {
+          const pp = a + b - c;
+          const pa = Math.abs(pp - a), pb = Math.abs(pp - b), pc = Math.abs(pp - c);
+          v = rb + (pa <= pb && pa <= pc ? a : pb <= pc ? b : c);
+          break;
+        }
+        default: v = rb;
+      }
+      out[y * stride + x] = v & 0xff;
+    }
+  }
+  const idxAt = (x, y) => {
+    const byte = out[y * stride + Math.floor(x / perByte)];
+    if (bitDepth === 8) return byte;
+    if (bitDepth === 4) return x & 1 ? byte & 0x0f : byte >> 4;
+    if (bitDepth === 2) return (byte >> ((3 - (x & 3)) * 2)) & 0x03;
+    if (bitDepth === 1) return (byte >> (7 - (x & 7))) & 1;
+    throw new Error(`crop: unsupported bit depth ${bitDepth}`);
+  };
+  const alphaOf = (i) => (trns && i < trns.length ? trns[i] : 255);
+  return { w, h, plte, idxAt, alphaOf };
+}
+
+function encodeRgbaPng(w, h, rgba) {
+  const stride = w * 4;
+  const rawData = Buffer.alloc(h * (stride + 1));
+  for (let y = 0; y < h; y++) {
+    rawData[y * (stride + 1)] = 0; // filter: none
+    rgba.copy(rawData, y * (stride + 1) + 1, y * stride, (y + 1) * stride);
+  }
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0);
+  ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 6; // colorType RGBA
+  return Buffer.concat([
+    PNG_SIG,
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', zlib.deflateSync(rawData, { level: 9 })),
+    pngChunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
+/**
+ * Crop a palettized PNG to its non-transparent bounding box (plus `pad` px of
+ * breathing room), re-encoded as RGBA. Returns the original buffer unchanged if
+ * it isn't a palette PNG or is fully transparent, so callers can apply it
+ * defensively. Idempotent: a tightly-cropped image simply re-crops to itself.
+ */
+function cropTransparentPng(pngBuf, pad = 2) {
+  let img;
+  try {
+    img = decodePalettePng(pngBuf);
+  } catch {
+    return pngBuf; // not a palette PNG (e.g. an already-cropped RGBA output) — leave as-is
+  }
+  const { w, h, plte, idxAt, alphaOf } = img;
+  let minX = w, minY = h, maxX = -1, maxY = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (alphaOf(idxAt(x, y)) !== 0) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return pngBuf; // fully transparent
+  minX = Math.max(0, minX - pad);
+  minY = Math.max(0, minY - pad);
+  maxX = Math.min(w - 1, maxX + pad);
+  maxY = Math.min(h - 1, maxY + pad);
+  const cw = maxX - minX + 1;
+  const ch = maxY - minY + 1;
+  if (cw === w && ch === h) return pngBuf; // nothing to trim
+  const rgba = Buffer.alloc(cw * ch * 4);
+  for (let y = 0; y < ch; y++) {
+    for (let x = 0; x < cw; x++) {
+      const i = idxAt(minX + x, minY + y);
+      const a = alphaOf(i);
+      const o = (y * cw + x) * 4;
+      if (a === 0) continue; // leave transparent (zero-filled)
+      rgba[o] = plte[i * 3];
+      rgba[o + 1] = plte[i * 3 + 1];
+      rgba[o + 2] = plte[i * 3 + 2];
+      rgba[o + 3] = a;
+    }
+  }
+  return encodeRgbaPng(cw, ch, rgba);
 }
 
 // ---------------------------------------------------------------------------
@@ -693,7 +872,9 @@ async function main() {
       const iconDir = join(OUT_DIR, d4);
       await mkdir(iconDir, { recursive: true });
       log(`  ${label} (UI icon)`);
-      await fetchPortrait(icon.dex, join(iconDir, 'portrait.png'), label);
+      // UI icons are shown small on a button, so crop the transparent frame
+      // margin (e.g. Klang's content is only ~58×50 inside a 96×96 portrait).
+      await fetchPortrait(icon.dex, join(iconDir, 'portrait.png'), label, { crop: true });
     }
   }
 
