@@ -4,6 +4,7 @@ export const DEFAULT_SETTINGS: Settings = {
   // Shared v0.4 + v1
   maxHp: 6,
   damagePerEntry: 1,
+  chaseDifficulty: 5,
   levelUpThreshold: 3,
   graceMinutes: 15,
   blocklist: [

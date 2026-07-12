@@ -36,6 +36,7 @@ import { Buffer } from 'node:buffer';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..');
 const OUT_DIR = join(REPO_ROOT, 'public', 'assets', 'pokemon');
+const UI_DIR = join(REPO_ROOT, 'public', 'assets', 'ui');
 const FONT_DIR = join(REPO_ROOT, 'public', 'fonts');
 
 /**
@@ -97,8 +98,21 @@ const LINES = [
 // UI-only icons: Pokémon whose portrait we ship purely as chrome (not guardian
 // species, so they are NOT added to species.json / LINES / evolution data). We
 // fetch ONLY the portrait for each.
-//   - Klefki (#707): the key/gear Pokémon, used as the settings button icon.
+//   - Klang (#600): the gear Pokémon, used as the settings button icon.
 const UI_ICONS = [{ dex: 600, name: 'Klang' }];
+
+// UI-only static assets (not Pokémon, not in species.json): fetched raw from
+// their source URL to public/assets/ui/. Same retry/idempotent/skip machinery
+// as everything else; --force re-downloads.
+//   - background.png: PMD SpriteCollab overworld map, dimmed behind the
+//     settings page.
+const UI_ASSETS = [
+  {
+    label: 'settings map background',
+    url: 'https://sprites.pmdcollab.org/background.png',
+    dest: 'ui/background.png',
+  },
+];
 
 const FORCE = process.argv.includes('--force');
 const VERBOSE = process.argv.includes('--verbose');
@@ -210,6 +224,24 @@ async function fetchPortrait(dex, dest, label) {
     else vlog(`${label} portrait: default fallback (no HGSS)`);
   } catch (err) {
     missing.push(`${label} portrait.png: ${err.message}`);
+  }
+}
+
+/**
+ * Fetch a raw UI asset (non-Pokémon chrome) to `dest`, unless it already exists
+ * (skipped unless --force). Idempotent, covered by fetchWithRetry via
+ * fetchBuffer. On failure pushes to `missing`.
+ */
+async function fetchUiAsset(url, dest, label) {
+  if (!FORCE && (await exists(dest))) {
+    vlog(`${label}: exists`);
+    return;
+  }
+  try {
+    await writeFile(dest, await fetchBuffer(url));
+    log(`  ${label} ✓`);
+  } catch (err) {
+    missing.push(`${label}: ${err.message}`);
   }
 }
 
@@ -665,6 +697,15 @@ async function main() {
     }
   }
 
+  // --- UI-only static assets (raw fetch; NOT part of species.json) ---
+  if (UI_ASSETS.length > 0) {
+    log('\nUI assets');
+    await mkdir(UI_DIR, { recursive: true });
+    for (const asset of UI_ASSETS) {
+      await fetchUiAsset(asset.url, join(UI_DIR, asset.dest.replace(/^ui\//, '')), asset.label);
+    }
+  }
+
   // --- Font (committed) ---
   log('\nFont');
   await fetchFont();
@@ -730,7 +771,7 @@ async function writeCredits(creditsPerStage) {
   lines.push('## Sources');
   lines.push('');
   lines.push(
-    '- **Sprites (walk/idle):** PMD SpriteCollab — https://sprites.pmdcollab.org/ ' +
+    '- **Sprites (walk/idle) & settings map background:** PMD SpriteCollab — https://sprites.pmdcollab.org/ ' +
       '(https://github.com/PMDCollab/SpriteCollab). Individual artist credits above.',
   );
   lines.push(

@@ -34,7 +34,20 @@ interface TextFieldSpec {
   maxLen: number;
 }
 
-type FieldSpec = NumberFieldSpec | TextFieldSpec;
+interface RangeFieldSpec {
+  kind: 'range';
+  key: NumericKey;
+  label: string;
+  explain: string;
+  /** Inclusive minimum of the slider. */
+  min: number;
+  /** Inclusive maximum of the slider. */
+  max: number;
+  /** Slider step (integers throughout). */
+  step: number;
+}
+
+type FieldSpec = NumberFieldSpec | TextFieldSpec | RangeFieldSpec;
 
 // Field order mirrors PRD §11: pokedexTitle first, then the core numerics, then
 // the Pokémon v1 numerics.
@@ -76,6 +89,16 @@ const FIELD_SPECS: readonly FieldSpec[] = [
     explain:
       'After paying, the site stays open this long before your guardian re-guards it.',
     min: 0,
+  },
+  {
+    kind: 'range',
+    key: 'chaseDifficulty',
+    label: 'Chase difficulty',
+    explain:
+      'How hard your guardian is to catch — speed, agility, and how long before it tires.',
+    min: 1,
+    max: 10,
+    step: 1,
   },
   {
     kind: 'number',
@@ -147,6 +170,8 @@ const savedRegion = byId<HTMLSpanElement>('saved-region');
 /** Live registry of the field inputs, keyed by setting. */
 const inputs = new Map<FieldKey, HTMLInputElement>();
 const errorEls = new Map<FieldKey, HTMLElement>();
+/** Live value readouts for range sliders, keyed by setting. */
+const rangeReadouts = new Map<FieldKey, HTMLElement>();
 
 // ---------------------------------------------------------------------------
 // Field construction
@@ -156,6 +181,7 @@ function buildFields(): void {
   fieldsEl.replaceChildren();
   inputs.clear();
   errorEls.clear();
+  rangeReadouts.clear();
 
   for (const spec of FIELD_SPECS) {
     const wrap = document.createElement('div');
@@ -176,33 +202,71 @@ function buildFields(): void {
     input.id = inputId;
     input.setAttribute('aria-describedby', errorId);
 
+    const error = document.createElement('p');
+    error.className = 'error';
+    error.id = errorId;
+    error.setAttribute('role', 'alert');
+
     if (spec.kind === 'number') {
       input.type = 'number';
       input.step = '1';
       input.min = String(spec.min);
       input.inputMode = 'numeric';
+      wrap.append(label, explain, input, error);
+    } else if (spec.kind === 'range') {
+      input.type = 'range';
+      input.className = 'range-slider';
+      input.min = String(spec.min);
+      input.max = String(spec.max);
+      input.step = String(spec.step);
+
+      // Live value readout beside the slider (updates on input).
+      const readout = document.createElement('span');
+      readout.className = 'range-value';
+
+      // Slider + readout on one row, endpoint hints flanking below.
+      const row = document.createElement('div');
+      row.className = 'range-row';
+      row.append(input, readout);
+
+      const hints = document.createElement('div');
+      hints.className = 'range-hints';
+      const lo = document.createElement('span');
+      lo.className = 'range-hint';
+      lo.textContent = `${spec.min} · gentle`;
+      const hi = document.createElement('span');
+      hi.className = 'range-hint';
+      hi.textContent = `${spec.max} · legendary`;
+      hints.append(lo, hi);
+
+      wrap.append(label, explain, row, hints, error);
+      rangeReadouts.set(spec.key, readout);
     } else {
       input.type = 'text';
       input.maxLength = spec.maxLen;
       input.autocomplete = 'off';
+      wrap.append(label, explain, input, error);
     }
-
-    const error = document.createElement('p');
-    error.className = 'error';
-    error.id = errorId;
-    error.setAttribute('role', 'alert');
 
     input.addEventListener('input', () => {
       validateField(spec);
       refreshSaveState();
     });
 
-    wrap.append(label, explain, input, error);
     fieldsEl.append(wrap);
 
     inputs.set(spec.key, input);
     errorEls.set(spec.key, error);
   }
+}
+
+/** Reflect a range slider's current value into its readout + aria-valuetext. */
+function syncRangeReadout(key: FieldKey): void {
+  const input = inputs.get(key);
+  const readout = rangeReadouts.get(key);
+  if (!input || !readout) return;
+  readout.textContent = input.value;
+  input.setAttribute('aria-valuetext', input.value);
 }
 
 // ---------------------------------------------------------------------------
@@ -215,7 +279,18 @@ function validateField(spec: FieldSpec): boolean {
   const error = errorEls.get(spec.key)!;
 
   let message = '';
-  if (spec.kind === 'number') {
+  if (spec.kind === 'range') {
+    // Sliders can't easily produce an invalid value, but we keep the
+    // mirror-validation pattern so Save logic stays uniform.
+    const value = Number(input.value);
+    if (!Number.isInteger(value) || value < spec.min || value > spec.max) {
+      message = `Must be a whole number between ${spec.min} and ${spec.max}.`;
+    }
+    if (message === '') {
+      working[spec.key] = value;
+    }
+    syncRangeReadout(spec.key);
+  } else if (spec.kind === 'number') {
     const raw = input.value.trim();
     if (raw === '') {
       message = 'Enter a whole number.';
@@ -376,6 +451,7 @@ function render(full: FullState): void {
   for (const spec of FIELD_SPECS) {
     const input = inputs.get(spec.key)!;
     input.value = String(working[spec.key]);
+    if (spec.kind === 'range') syncRangeReadout(spec.key);
   }
   renderBlocklist();
   showAddError('');

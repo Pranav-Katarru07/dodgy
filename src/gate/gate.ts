@@ -297,6 +297,7 @@ function runChase(ctx: Ctx, state: FullState): void {
       sprite,
       desperate: state.derived.desperate,
       reducedMotion: prefersReducedMotion,
+      difficulty: state.settings.chaseDifficulty,
       onCatch: toGuilt,
       onMiss: (count) => {
         if (count >= MISSES_BEFORE_FALLBACK) revealFallback();

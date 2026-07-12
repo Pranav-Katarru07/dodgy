@@ -39,9 +39,34 @@
         font-size: 9px;
         line-height: 1.9;
         letter-spacing: 0.5px;
-        background: var(--bezel);
+        /* Solid color fallback: if the map asset is missing the page renders
+           plain --bezel with no visible gap. */
+        background-color: var(--bezel);
         color: var(--ink);
         image-rendering: pixelated;
+        overflow-x: hidden;
+      }
+
+      /* Dimmed PMD overworld map behind everything. A strong light veil
+         (>= 0.85) is stacked over the pixel-art image so the white dialogs
+         and dark text stay fully readable. Static (no motion), and if the
+         asset 404s the body's --bezel color shows through. */
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        background-image:
+          linear-gradient(
+            rgba(222, 222, 222, 0.9),
+            rgba(222, 222, 222, 0.9)
+          ),
+          url('/assets/ui/background.png');
+        background-position: center;
+        background-size: cover;
+        background-repeat: no-repeat;
+        image-rendering: pixelated;
+        pointer-events: none;
       }
 
       #app {
@@ -148,6 +173,89 @@
       button:focus-visible {
         outline: 2px solid var(--ink);
         outline-offset: 2px;
+      }
+
+      /* ---- Range slider (vintage) ---- */
+      .range-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        max-width: 320px;
+      }
+
+      .range-value {
+        flex: none;
+        min-width: 34px;
+        text-align: center;
+        font-size: 10px;
+        line-height: 1;
+        padding: 6px 6px;
+        background: var(--lcd-bg);
+        color: var(--lcd-ink);
+        border: 2px solid var(--ink);
+      }
+
+      input[type='range'].range-slider {
+        flex: 1;
+        appearance: none;
+        -webkit-appearance: none;
+        width: 100%;
+        height: 16px;
+        padding: 0;
+        margin: 6px 0;
+        background: transparent;
+        border: 0;
+        cursor: pointer;
+      }
+
+      /* chunky white track with a black border */
+      input[type='range'].range-slider::-webkit-slider-runnable-track {
+        height: 12px;
+        background: var(--dialog);
+        border: 2px solid var(--ink);
+        border-radius: 0;
+      }
+
+      input[type='range'].range-slider::-moz-range-track {
+        height: 12px;
+        background: var(--dialog);
+        border: 2px solid var(--ink);
+        border-radius: 0;
+      }
+
+      /* square/pixelated thumb in Pokédex red */
+      input[type='range'].range-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        margin-top: -4px;
+        background: var(--pokedex-red);
+        border: 2px solid var(--ink);
+        border-radius: 0;
+      }
+
+      input[type='range'].range-slider::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        background: var(--pokedex-red);
+        border: 2px solid var(--ink);
+        border-radius: 0;
+      }
+
+      input[type='range'].range-slider:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 3px;
+      }
+
+      .range-hints {
+        display: flex;
+        justify-content: space-between;
+        max-width: 320px;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 7px;
+        line-height: 1.8;
       }
 
       input[aria-invalid='true'] {
@@ -357,6 +465,52 @@
         opacity: 1;
       }
 
+      /* ---- Resources footer (GB dialog box) ---- */
+      .resources {
+        background: var(--dialog);
+        border: 3px solid var(--ink);
+        box-shadow: 0 0 0 3px var(--dialog), 0 0 0 6px var(--ink);
+        padding: 20px 18px;
+        margin: 34px 6px 8px;
+      }
+
+      .resources h2 {
+        margin: 0 0 14px;
+      }
+
+      .resources ul {
+        list-style: none;
+        margin: 0 0 14px;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        font-size: 8px;
+        line-height: 1.9;
+      }
+
+      .resources a {
+        color: var(--pokedex-red-dark);
+        text-decoration: underline;
+        word-break: break-word;
+      }
+
+      .resources a:hover {
+        color: var(--pokedex-red);
+      }
+
+      .resources a:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 2px;
+      }
+
+      .resources .disclaimer {
+        margin: 0;
+        color: var(--muted);
+        font-size: 7px;
+        line-height: 2;
+      }
+
       @media (prefers-reduced-motion: no-preference) {
         button.primary,
         #saved-region,
@@ -422,6 +576,42 @@
           <span id="saved-region" aria-live="polite" role="status"></span>
         </div>
       </form>
+
+      <footer class="resources" aria-labelledby="resources-heading">
+        <h2 id="resources-heading">RESOURCES</h2>
+        <ul>
+          <li>
+            <a
+              href="https://sprites.pmdcollab.org/"
+              target="_blank"
+              rel="noopener noreferrer"
+              >PMD SpriteCollab — sprites &amp; map background</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://pokeapi.co/"
+              target="_blank"
+              rel="noopener noreferrer"
+              >PokéAPI — species data</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://github.com/PokeAPI/sprites"
+              target="_blank"
+              rel="noopener noreferrer"
+              >PokeAPI/sprites — portraits</a
+            >
+          </li>
+          <li>Press Start 2P by CodeMan38 — SIL OFL</li>
+        </ul>
+        <p class="disclaimer">
+          Full contributor credits ship in dist/assets/pokemon/CREDITS.md.
+          Fan-made; not affiliated with Nintendo, Game Freak, or The Pokémon
+          Company.
+        </p>
+      </footer>
     </main>
     <script type="module" src="./settings.ts"></script>
   </body>

@@ -358,6 +358,15 @@ function clampMin(value: number, min: number): number {
   return Number.isFinite(value) && value >= min ? value : min;
 }
 
+/**
+ * Clamp a numeric field to the inclusive [min, max] range, rounding to an
+ * integer; coerce invalid/NaN to `fallback`.
+ */
+function clampRange(value: number, min: number, max: number, fallback: number): number {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
 function validateSettings(raw: Settings): Settings {
   const seen = new Set<string>();
   const blocklist: string[] = [];
@@ -379,6 +388,7 @@ function validateSettings(raw: Settings): Settings {
     // v0.4 / shared numerics.
     maxHp: clampMin(raw.maxHp, 1),
     damagePerEntry: clampMin(raw.damagePerEntry, 1),
+    chaseDifficulty: clampRange(raw.chaseDifficulty, 1, 10, DEFAULT_SETTINGS.chaseDifficulty),
     levelUpThreshold: clampMin(raw.levelUpThreshold, 1),
     graceMinutes: clampMin(raw.graceMinutes, 0),
     // v1 numerics.

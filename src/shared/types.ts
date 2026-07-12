@@ -6,6 +6,8 @@ export interface Settings {
   // --- Core ---
   maxHp: number;
   damagePerEntry: number;
+  /** How hard the guardian is to catch: integer 1 (gentle) .. 10 (legendary), default 5. */
+  chaseDifficulty: number;
   levelUpThreshold: number;
   graceMinutes: number;
   blocklist: string[];
