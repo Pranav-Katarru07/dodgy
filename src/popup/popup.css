@@ -160,24 +160,37 @@ canvas {
   text-overflow: ellipsis;
 }
 
-/* Settings button (Klefki icon) — lives top-right in the .topbar. */
+/* Settings button (Klang icon) — lives top-right in the .topbar.
+   The sprite is a light grey/steel Pokémon, so it sits on a pale dished
+   "screen" (like a Pokédex lens) for contrast instead of a dark-red field. */
 .gear-btn {
   appearance: none;
   flex: 0 0 auto;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
   border: 3px solid var(--outline);
-  background: var(--dex-red-dark);
-  color: #fff;
-  font-size: 14px;
+  /* Bright bezel so the button itself reads clearly on the red shell. */
+  background: var(--bezel);
+  color: var(--outline);
+  font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  padding: 2px;
+  padding: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  box-shadow: 0 2px 0 var(--dex-red-dark);
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+.gear-btn:hover {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 var(--dex-red-dark);
+}
+.gear-btn:active {
+  transform: translateY(2px);
+  box-shadow: none;
 }
 .gear-btn .gear-icon {
   width: 100%;
@@ -185,13 +198,23 @@ canvas {
   object-fit: contain;
   image-rendering: pixelated;
   display: block;
+  /* Pale radial "screen" behind the grey sprite + a subtle outline so the
+     gears separate cleanly from the button. */
+  background: radial-gradient(circle at 50% 42%, #ffffff 0%, #eef2f6 62%, #cfd6de 100%);
+  border-radius: 5px;
+  padding: 1px;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.55));
 }
 /* When the icon fails to load, popup.ts swaps in the ⚙ glyph as text. */
 .gear-btn.fallback .gear-icon {
   display: none;
 }
+.gear-btn.fallback {
+  /* Fallback glyph is dark text on the pale bezel — keep it legible. */
+  color: var(--dex-red-dark);
+}
 .gear-btn:focus-visible {
-  outline: 3px solid #fff;
+  outline: 3px solid var(--outline);
   outline-offset: 2px;
 }
 
