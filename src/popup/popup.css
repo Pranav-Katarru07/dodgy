@@ -166,17 +166,18 @@ canvas {
 .gear-btn {
   appearance: none;
   flex: 0 0 auto;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: 8px;
-  border: 3px solid var(--outline);
-  /* Bright bezel so the button itself reads clearly on the red shell. */
-  background: var(--bezel);
-  color: var(--outline);
-  font-size: 20px;
+  border: 2px solid var(--outline);
+  /* Pale radial "screen" IS the button face, so the grey sprite sits
+     directly on it edge-to-edge with no wasted padding. */
+  background: radial-gradient(circle at 50% 44%, #ffffff 0%, #eef2f6 60%, #cfd6de 100%);
+  color: var(--dex-red-dark);
+  font-size: 22px;
   line-height: 1;
   cursor: pointer;
-  padding: 3px;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -193,17 +194,14 @@ canvas {
   box-shadow: none;
 }
 .gear-btn .gear-icon {
-  width: 100%;
-  height: 100%;
+  /* Fill the button; the Klang sprite has its own transparent margin, so a
+     slight scale-up makes the gears read at this size. */
+  width: 132%;
+  height: 132%;
   object-fit: contain;
   image-rendering: pixelated;
   display: block;
-  /* Pale radial "screen" behind the grey sprite + a subtle outline so the
-     gears separate cleanly from the button. */
-  background: radial-gradient(circle at 50% 42%, #ffffff 0%, #eef2f6 62%, #cfd6de 100%);
-  border-radius: 5px;
-  padding: 1px;
-  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.55));
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.6));
 }
 /* When the icon fails to load, popup.ts swaps in the ⚙ glyph as text. */
 .gear-btn.fallback .gear-icon {
