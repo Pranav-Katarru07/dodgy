@@ -504,7 +504,7 @@ function onKeyDown(e: KeyboardEvent): void {
 }
 
 /**
- * Point the settings button at Klefki's portrait (UI-only icon, dex 707). If the
+ * Point the settings button at Klang's portrait (UI-only icon, dex 600). If the
  * image ever fails to load, fall back to the ⚙ glyph so the button never renders
  * empty. Mirrors the never-throw handling used for the other portraits.
  */
@@ -514,7 +514,7 @@ function setupGearIcon(): void {
     gearBtn.textContent = '⚙';
   });
   try {
-    gearIcon.src = chrome.runtime.getURL('assets/pokemon/0707/portrait.png');
+    gearIcon.src = chrome.runtime.getURL('assets/pokemon/0600/portrait.png');
   } catch {
     gearBtn.classList.add('fallback');
     gearBtn.textContent = '⚙';
