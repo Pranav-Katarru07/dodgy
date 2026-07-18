@@ -20,6 +20,10 @@
         --muted: #4a4a4a;
         --pokedex-red: #dc0a2d;
         --pokedex-red-dark: #a80822;
+        /* text-only variant of --pokedex-red: darkened to clear WCAG AA 4.5:1
+           against the dimmed map background (--pokedex-red itself is 3.78:1,
+           fine on solid white but not on the map veil headings sit on). */
+        --pokedex-red-heading: #bb0826;
         --danger: #b3001b;
         --lcd-bg: #9bbc0f;
         --lcd-ink: #0f380f;
@@ -85,7 +89,7 @@
         line-height: 1.6;
         letter-spacing: 1px;
         margin: 0 0 8px;
-        color: var(--pokedex-red);
+        color: var(--pokedex-red-heading);
         text-shadow: 2px 2px 0 var(--ink);
       }
 
@@ -101,7 +105,7 @@
         line-height: 1.6;
         letter-spacing: 1px;
         margin: 0 0 16px;
-        color: var(--pokedex-red);
+        color: var(--pokedex-red-heading);
       }
 
       /* ---- Dialog boxes: chunky double black borders ---- */
@@ -338,7 +342,7 @@
         line-height: 1.6;
         letter-spacing: 1px;
         margin: 0 0 16px;
-        color: var(--pokedex-red);
+        color: var(--pokedex-red-heading);
         cursor: pointer;
         list-style: none;
         display: flex;

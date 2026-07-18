@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-18T00:00:00Z",
+  "title": "Design System: dodgy",
+  "extensions": {
+    "colorMeta": {
+      "poke-red": { "role": "primary", "displayName": "Poké Red", "canonical": "#dc0a2d", "tonalRamp": ["#3a0009", "#560012", "#72001b", "#a30a24", "#dc0a2d", "#e8384f", "#f07d8d", "#fcd8dc"] },
+      "poke-red-dark": { "role": "primary-deep", "displayName": "Poké Red Dark", "canonical": "#a30a24", "tonalRamp": ["#22050b", "#3d0912", "#5c0c18", "#7c0e1f", "#a30a24", "#c33049", "#dd7a8c", "#f4cdd3"] },
+      "poke-red-heading": { "role": "primary-text", "displayName": "Poké Red Heading", "canonical": "#bb0826", "tonalRamp": ["#280006", "#48000f", "#6a0517", "#93071f", "#bb0826", "#d5344d", "#e87f8f", "#f8d4d9"] },
+      "lcd-green": { "role": "secondary", "displayName": "LCD Green", "canonical": "#9bbc0f", "tonalRamp": ["#1c2404", "#354308", "#4f620c", "#77900f", "#9bbc0f", "#b6cf4c", "#d3e393", "#eef6d3"] },
+      "lcd-green-dark": { "role": "secondary-ink", "displayName": "LCD Green Dark", "canonical": "#0f380f", "tonalRamp": ["#020a02", "#071807", "#0b280b", "#0f380f", "#1c5c1c", "#357f35", "#63ab63", "#a9d6a9"] },
+      "spare-green": { "role": "affirmative", "displayName": "Spare Green", "canonical": "#2e8b3d", "tonalRamp": ["#0a2010", "#123a1a", "#1d5726", "#257032", "#2e8b3d", "#4dab5c", "#83c78e", "#c3e6c8"] },
+      "gb-paper": { "role": "neutral-bg", "displayName": "GB Paper", "canonical": "#f7f7ef", "tonalRamp": ["#26261f", "#454539", "#67675600", "#9a9a83", "#d9d9cc", "#f7f7ef", "#fbfbf6", "#ffffff"] },
+      "gb-ink": { "role": "neutral-text", "displayName": "GB Ink", "canonical": "#17181f", "tonalRamp": ["#000000", "#0b0c10", "#17181f", "#2c2d38", "#4a4d5c", "#6d707c", "#9a9ca5", "#d4d5d9"] },
+      "gb-ink-dim": { "role": "neutral-text-dim", "displayName": "GB Ink Dim", "canonical": "#4a4d5c", "tonalRamp": ["#0e0f13", "#1d1e26", "#2f313c", "#3c3e4c", "#4a4d5c", "#6d707c", "#9a9ca5", "#d4d5d9"] },
+      "gb-hint": { "role": "neutral-text-hint", "displayName": "GB Hint (corrected)", "canonical": "#6d707c", "tonalRamp": ["#151519", "#282932", "#3d3f4a", "#565863", "#6d707c", "#8b8e97", "#b3b5bc", "#dcdde0"] },
+      "danger": { "role": "danger", "displayName": "Danger", "canonical": "#c0263a", "tonalRamp": ["#280610", "#48091b", "#6c0d26", "#96122f", "#c0263a", "#d5566a", "#e79aa5", "#f8dde1"] },
+      "coin": { "role": "accent", "displayName": "PokéCoin Gold", "canonical": "#f4c430", "tonalRamp": ["#332902", "#5c4a04", "#856b07", "#af8f0d", "#f4c430", "#f7d566", "#fae8a5", "#fdf5d8"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page-level headings only (h1, .gb-dialog h2). Rare — one per screen." },
+      "title": { "displayName": "Title", "purpose": "Section headings, popup title bar, party/starter names." },
+      "body": { "displayName": "Body", "purpose": "Dialog copy, field labels, form text. Cap at ~42ch." },
+      "label": { "displayName": "Label", "purpose": "Captions, LCD readouts, type badges, footnotes." }
+    },
+    "shadows": [
+      { "name": "dialog-frame", "value": "inset 0 0 0 4px var(--gb-paper), inset 0 0 0 8px #000, 0 0 0 4px var(--poke-red)", "purpose": "Signature GB double-border picture frame on every dialog box." },
+      { "name": "button-rest", "value": "3px 3px 0 #000", "purpose": "Default hard offset shadow on buttons, giving a pressable card edge." },
+      { "name": "button-pressed", "value": "0 0 0 #000", "purpose": "Shadow collapses to zero on :active, paired with translate(3px, 3px)." },
+      { "name": "card-hover", "value": "6px 6px 0 var(--poke-red)", "purpose": "Starter cards / party rows: shadow grows and recolors to red on hover/focus." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.22, 0.61, 0.36, 1)", "purpose": "Default ease-out for screen transitions, hints, and hover lifts." },
+      { "name": "press-instant", "value": "0.08s linear", "purpose": "Button press collapse — deliberately fast and un-eased, mechanical." }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Primary Button (Save)",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The settings page's single pill-shaped commitment button.",
+      "html": "<button class=\"ds-btn-primary\">Save</button>",
+      "css": ".ds-btn-primary { font-family: 'Press Start 2P', monospace; font-size: 9px; cursor: pointer; border-radius: 999px; border: 2px solid #101010; background: #dc0a2d; color: #ffffff; padding: 11px 26px; letter-spacing: 1px; box-shadow: 2px 2px 0 #101010; transition: none; } .ds-btn-primary:hover { background: #a80822; } .ds-btn-primary:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 #101010; } .ds-btn-primary:focus-visible { outline: 2px solid #101010; outline-offset: 2px; }"
+    },
+    {
+      "name": "Continue Button",
+      "kind": "button",
+      "refersTo": "button-continue",
+      "description": "Gate 'Continue' action — deals 1 damage, square GB button.",
+      "html": "<button class=\"ds-btn-continue\">CONTINUE</button>",
+      "css": ".ds-btn-continue { font-family: 'Press Start 2P', monospace; font-size: 9px; line-height: 1.6; padding: 0.8rem 1.1rem; cursor: pointer; color: #fff; background: #c0263a; border: 3px solid #000; box-shadow: 3px 3px 0 #000; transition: transform 0.08s cubic-bezier(0.22,0.61,0.36,1), box-shadow 0.08s cubic-bezier(0.22,0.61,0.36,1); } .ds-btn-continue:hover { background: #d8324a; } .ds-btn-continue:active { transform: translate(3px, 3px); box-shadow: 0 0 #000; } .ds-btn-continue:focus-visible { outline: 3px solid #dc0a2d; outline-offset: 3px; }"
+    },
+    {
+      "name": "Spare Button",
+      "kind": "button",
+      "refersTo": "button-spare",
+      "description": "Gate 'Spare it' action — the system's one affirmative-green button.",
+      "html": "<button class=\"ds-btn-spare\">SPARE IT</button>",
+      "css": ".ds-btn-spare { font-family: 'Press Start 2P', monospace; font-size: 9px; line-height: 1.6; padding: 0.8rem 1.1rem; cursor: pointer; color: #fff; background: #2e8b3d; border: 3px solid #000; box-shadow: 3px 3px 0 #000; transition: transform 0.08s cubic-bezier(0.22,0.61,0.36,1), box-shadow 0.08s cubic-bezier(0.22,0.61,0.36,1); } .ds-btn-spare:hover { background: #37a349; } .ds-btn-spare:active { transform: translate(3px, 3px); box-shadow: 0 0 #000; } .ds-btn-spare:focus-visible { outline: 3px solid #dc0a2d; outline-offset: 3px; }"
+    },
+    {
+      "name": "GB Dialog",
+      "kind": "custom",
+      "refersTo": "dialog",
+      "description": "Signature double-bordered Game Boy dialog box used for every gate screen and settings section.",
+      "html": "<div class=\"ds-gb-dialog\"><h2 class=\"ds-gb-dialog-title\">Dodgy appeared!</h2><p class=\"ds-gb-dialog-body\">Catch it, then decide.</p></div>",
+      "css": ".ds-gb-dialog { position: relative; background: #f7f7ef; color: #17181f; border: 4px solid #000; box-shadow: inset 0 0 0 4px #f7f7ef, inset 0 0 0 8px #000, 0 0 0 4px #dc0a2d; padding: 2rem 2rem 1.6rem; max-width: 640px; width: 100%; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.6rem; font-family: 'Press Start 2P', monospace; } .ds-gb-dialog-title { margin: 0.6rem 0 0.2rem; font-size: 14px; line-height: 1.7; color: #17181f; max-width: 26ch; } .ds-gb-dialog-body { margin: 0.2rem 0; font-size: 9px; line-height: 1.9; color: #4a4d5c; max-width: 42ch; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Settings-page number/text field — square, high-contrast focus.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"add a site, e.g. youtube.com\" />",
+      "css": ".ds-input { width: 100%; max-width: 220px; padding: 9px 10px; background: #ffffff; color: #101010; border: 2px solid #101010; border-radius: 0; font-family: 'Press Start 2P', monospace; font-size: 9px; line-height: 1.4; } .ds-input:focus-visible { outline: 2px solid #101010; outline-offset: 2px; } .ds-input[aria-invalid='true'] { border-color: #b3001b; box-shadow: 0 0 0 1px #b3001b inset; }"
+    },
+    {
+      "name": "Type Badge",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Pokémon type badge — color plus text label, never color alone.",
+      "html": "<span class=\"ds-type-badge\">FIRE</span>",
+      "css": ".ds-type-badge { font-family: 'Press Start 2P', monospace; font-size: 8px; letter-spacing: 0.04em; padding: 0.35rem 0.5rem; border: 2px solid #000; border-radius: 2px; line-height: 1; color: #fff; text-transform: uppercase; background: #ee8130; }"
+    },
+    {
+      "name": "Starter/Party Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Selectable card used for starter picks and party rows — hard shadow grows red on hover.",
+      "html": "<button class=\"ds-starter-card\" aria-checked=\"false\"><span class=\"ds-starter-name\">Charmander</span></button>",
+      "css": ".ds-starter-card { font-family: 'Press Start 2P', monospace; background: #fffdf4; border: 3px solid #000; box-shadow: 4px 4px 0 #000; padding: 1rem 0.8rem; width: 200px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; transition: transform 0.08s cubic-bezier(0.22,0.61,0.36,1), box-shadow 0.08s cubic-bezier(0.22,0.61,0.36,1); } .ds-starter-card:hover, .ds-starter-card:focus-visible { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #dc0a2d; outline: none; } .ds-starter-card[aria-checked='true'] { box-shadow: 4px 4px 0 #dc0a2d; border-color: #dc0a2d; } .ds-starter-name { font-size: 11px; color: #17181f; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Pokédex Shell",
+    "overview": "Every surface is a piece of Pokédex hardware you're looking through, not a webpage skinned to look like one. The popup is the red dex-shell itself — bezel, lens, D-pad, LCD screen. The gate and settings pages are the chunky white dialog boxes that would pop up on that hardware: double black borders, hard corners, Press Start 2P rendered at pixel sizes small enough that -webkit-font-smoothing: none and image-rendering: pixelated read as intentional, not broken. Nothing here simulates a modern app that happens to have a retro theme; the target is Gen 2/3 Pokédex UI and PMD SpriteCollab overworld sprites specifically; if a screen wouldn't plausibly render on that hardware, it doesn't belong. The tone stays playful and retro first — collectible, a little silly, fond of its own creature — with the guilt mechanic's real emotional weight sitting underneath rather than announcing itself through the visual language. Low-HP and faint states get more urgent color and pacing, never a shift into a different (grimmer, flatter) design system. This system explicitly rejects generic mobile gacha/idle-game chrome (gradient buttons, coin-shower juice, F2P App Store polish) and flat modern SaaS (soft shadows, rounded cards, clean sans-serif) — both read as a different product wearing this one's skin.",
+    "keyCharacteristics": [
+      "Chunky and tactile: thick black borders, hard offset drop-shadows, buttons that visibly displace on press",
+      "Two hardware registers only — red dex-shell chrome (popup) and white GB dialog box (gate, settings) — never invent a third",
+      "Press Start 2P everywhere, at real pixel sizes (7–14px), never smoothed",
+      "LCD green as the 'screen within the screen' for flavor text, notes, and readouts",
+      "Flat by default; the only depth cue is the hard offset shadow, never blur"
+    ],
+    "rules": [
+      { "name": "The Two-Register Rule", "body": "Every surface is either red dex-shell chrome or a white GB dialog box. A screen that tries to be both, or introduces a third background family, breaks the hardware illusion.", "section": "colors" },
+      { "name": "The Rarity Rule", "body": "Spare Green appears in exactly one place: the spare/forgive action. Danger red variants are reserved for damage, faint, and destructive confirmation. Reusing either color for a neutral action dilutes the meaning both are built to carry.", "section": "colors" },
+      { "name": "The One Typeface Rule", "body": "Press Start 2P is the only font family anywhere in the system, including fallbacks used only for a pre-load flash. Introducing a second family breaks the hardware illusion immediately.", "section": "typography" },
+      { "name": "The No-Scale-Up Rule", "body": "Never render Press Start 2P above ~14px. If a heading needs more visual weight, use color (Poké Red) or spacing, not size.", "section": "typography" },
+      { "name": "The Hard-Shadow-Only Rule", "body": "No blur-radius greater than 0 anywhere. Every shadow in this system is a flat offset, matching pixel-art rendering.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep every surface inside one of the two hardware registers: red dex-shell chrome or white GB dialog box.",
+      "Do use hard, non-blurred offset shadows (Npx Npx 0 <color>) for all elevation and pressed-state feedback.",
+      "Do render Press Start 2P at real pixel sizes (7–14px) with image-rendering: pixelated and no font smoothing.",
+      "Do route settings-page heading red through --pokedex-red-heading (#bb0826) whenever red text sits on the dimmed map background — plain --pokedex-red measures 3.78:1 there and fails WCAG AA.",
+      "Do use --gb-hint (#6d707c) for the smallest caption/hint text on paper, not the old #7a7d8a value, which fails 4.5:1.",
+      "Do pair LCD green background with LCD green-dark text as one unit; never split the pair.",
+      "Do provide a prefers-reduced-motion alternative for every animation.",
+      "Do keep Spare Green and the 'Spare it' action as the system's one rare affirmative color."
+    ],
+    "donts": [
+      "Don't introduce gradient buttons, coin-shower particle juice, or any modern F2P/gacha mobile-game chrome.",
+      "Don't let flat modern SaaS drift in: no soft blurred shadows, no rounded cards as a default shape, no clean sans-serif creeping into any new screen.",
+      "Don't scale Press Start 2P above ~14px, and don't introduce a second typeface for readability.",
+      "Don't use border-left/border-right as a colored accent stripe on any card or list row.",
+      "Don't apply background-clip: text gradients to headings; emphasis comes from Poké Red color or spacing, never a gradient.",
+      "Don't use plain --pokedex-red for text directly against --bezel or the settings map veil — use --pokedex-red-heading instead.",
+      "Don't design the UI as if it enforces anything — no punitive chrome that reads as a technical wall rather than an honest honor-system nudge."
+    ]
+  }
+}

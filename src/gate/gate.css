@@ -203,7 +203,7 @@ body {
 }
 
 .gb-hint {
-  color: #7a7d8a !important;
+  color: #6d707c !important; /* darkened from #7a7d8a to clear WCAG AA 4.5:1 on --gb-paper */
   font-size: 8px !important;
   margin-top: 0.4rem !important;
 }
