@@ -1,24 +1,45 @@
-import type { FullState, Settings } from './types';
+import type { FullState, Settings, SpeciesId } from './types';
 
 export type Request =
   | { type: 'GET_STATE' }
   | { type: 'PAY_ENTRY'; domain: string }
   | { type: 'SPARE'; domain: string }
   | { type: 'UPDATE_SETTINGS'; settings: Settings }
-  | { type: 'RESET_BLOCKLIST' };
+  | { type: 'RESET_BLOCKLIST' }
+  // --- v1 actions (frozen) ---
+  | { type: 'PICK_STARTER'; species: SpeciesId }
+  | { type: 'SET_GUARDIAN'; monId: string }
+  | { type: 'BUY_EGG'; species: SpeciesId }
+  | { type: 'ACK_EVOLUTION'; monId: string };
 
-/**
- * Result of paying 1 HP to enter a domain.
- * `redirect` is always true: even the fatal blow grants a grace pass for that
- * one domain and loads the target site (product decision #2). On 'death' the
- * lockout applies to every OTHER domain immediately.
- */
+// ---------------------------------------------------------------------------
+// PayEntryResponse
+// ---------------------------------------------------------------------------
+
+/** Result of paying to enter a domain. */
 export interface PayEntryResponse {
-  outcome: 'granted' | 'death';
+  outcome: 'granted' | 'faint' | 'permadeath' | 'locked' | 'no-guardian';
   hp: number;
+  faintStreak: number;
   lockoutUntil: number | null;
   graceExpiresAt: number;
-  redirect: true;
+  redirect: boolean;
+  /** True when the guardian permadied and the party is now empty. */
+  partyEmpty: boolean;
+}
+
+/** Response to the v1 party/egg/evolution actions (frozen). */
+export interface ActionResponse {
+  ok: boolean;
+  reason?:
+    | 'locked'
+    | 'not-found'
+    | 'party-not-empty'
+    | 'insufficient-coins'
+    | 'incubator-full'
+    | 'unknown-species'
+    | 'no-pending-evolution';
+  state: FullState;
 }
 
 export interface SpareResponse {
@@ -32,6 +53,10 @@ export interface ResponseMap {
   SPARE: SpareResponse;
   UPDATE_SETTINGS: FullState;
   RESET_BLOCKLIST: FullState;
+  PICK_STARTER: ActionResponse;
+  SET_GUARDIAN: ActionResponse;
+  BUY_EGG: ActionResponse;
+  ACK_EVOLUTION: ActionResponse;
 }
 
 export type ResponseFor<R extends Request> = ResponseMap[R['type']];

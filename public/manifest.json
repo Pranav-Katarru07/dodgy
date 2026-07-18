@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "dodgy",
-  "version": "0.1.0",
-  "description": "A mascot you must chase and guilt past to reach distracting sites. Don't kill dodgy.",
+  "version": "1.0.0",
+  "description": "A guardian Pokémon defends your distracting sites — chase and guilt past it, or drain its HP and watch it faint. Don't let it faint.",
   "permissions": ["declarativeNetRequest", "storage", "alarms", "tabs"],
   "host_permissions": ["<all_urls>"],
   "background": {

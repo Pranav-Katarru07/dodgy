@@ -1,15 +1,18 @@
 {
   "name": "dodgy",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "assets": "node scripts/fetch-assets.mjs",
+    "check-assets": "node scripts/check-assets.mjs",
+    "predev": "node scripts/check-assets.mjs",
     "dev": "vite build --watch",
+    "prebuild": "node scripts/check-assets.mjs",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "sprites": "node scripts/generate-sprites.mjs"
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.268",

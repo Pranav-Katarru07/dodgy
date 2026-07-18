@@ -3,19 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>dodgy — settings</title>
+    <title>dodgy — trainer settings</title>
     <style>
+      @font-face {
+        font-family: 'Press Start 2P';
+        src: url('/fonts/PressStart2P-Regular.ttf') format('truetype');
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+
       :root {
-        --bg: #14151f;
-        --panel: #1e2030;
-        --panel-2: #262a3d;
-        --text: #e8eaf2;
-        --muted: #9aa0b8;
-        --accent: #f0a04b;
-        --accent-strong: #ffb968;
-        --danger: #ff7676;
-        --border: #333853;
-        --ok: #7fd08b;
+        --bezel: #dedede;
+        --dialog: #ffffff;
+        --ink: #101010;
+        --muted: #4a4a4a;
+        --pokedex-red: #dc0a2d;
+        --pokedex-red-dark: #a80822;
+        --danger: #b3001b;
+        --lcd-bg: #9bbc0f;
+        --lcd-ink: #0f380f;
+        --pokeball: #dc0a2d;
+
+        --font: 'Press Start 2P', 'Courier New', monospace;
       }
 
       * {
@@ -24,54 +34,98 @@
 
       body {
         margin: 0;
-        padding: 24px 16px 64px;
-        font-family: system-ui, sans-serif;
-        background: var(--bg);
-        color: var(--text);
-        line-height: 1.5;
+        padding: 24px 14px 72px;
+        font-family: var(--font);
+        font-size: 9px;
+        line-height: 1.9;
+        letter-spacing: 0.5px;
+        /* Solid color fallback: if the map asset is missing the page renders
+           plain --bezel with no visible gap. */
+        background-color: var(--bezel);
+        color: var(--ink);
+        image-rendering: pixelated;
+        overflow-x: hidden;
+      }
+
+      /* Dimmed PMD overworld map behind everything. A strong light veil
+         (>= 0.85) is stacked over the pixel-art image so the white dialogs
+         and dark text stay fully readable. Static (no motion), and if the
+         asset 404s the body's --bezel color shows through. */
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        background-image:
+          linear-gradient(
+            rgba(222, 222, 222, 0.9),
+            rgba(222, 222, 222, 0.9)
+          ),
+          url('/assets/ui/background.png');
+        background-position: center;
+        background-size: cover;
+        background-repeat: no-repeat;
+        image-rendering: pixelated;
+        pointer-events: none;
       }
 
       #app {
-        max-width: 640px;
+        max-width: 620px;
         margin: 0 auto;
       }
 
-      h1 {
-        font-size: 1.6rem;
-        margin: 0 0 4px;
+      /* ---- Header ---- */
+      .page-head {
+        text-align: center;
+        margin-bottom: 22px;
       }
 
-      h2 {
-        font-size: 1.15rem;
-        margin: 0 0 12px;
-        color: var(--accent-strong);
+      h1 {
+        font-size: 14px;
+        line-height: 1.6;
+        letter-spacing: 1px;
+        margin: 0 0 8px;
+        color: var(--pokedex-red);
+        text-shadow: 2px 2px 0 var(--ink);
       }
 
       .subtitle {
         color: var(--muted);
-        margin: 0 0 24px;
+        font-size: 8px;
+        line-height: 1.8;
+        margin: 0;
       }
 
+      h2 {
+        font-size: 11px;
+        line-height: 1.6;
+        letter-spacing: 1px;
+        margin: 0 0 16px;
+        color: var(--pokedex-red);
+      }
+
+      /* ---- Dialog boxes: chunky double black borders ---- */
       section {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 20px;
+        background: var(--dialog);
+        border: 3px solid var(--ink);
+        box-shadow: 0 0 0 3px var(--dialog), 0 0 0 6px var(--ink);
+        padding: 20px 18px;
+        margin: 0 6px 26px;
       }
 
       .note {
-        background: var(--panel-2);
-        border-left: 3px solid var(--accent);
-        border-radius: 6px;
-        padding: 10px 14px;
-        color: var(--muted);
-        font-size: 0.9rem;
-        margin: 0 0 20px;
+        background: var(--lcd-bg);
+        color: var(--lcd-ink);
+        border: 2px solid var(--ink);
+        padding: 10px 12px;
+        font-size: 8px;
+        line-height: 1.9;
+        margin: 0 6px 24px;
       }
 
+      /* ---- Fields ---- */
       .field {
-        margin-bottom: 18px;
+        margin-bottom: 22px;
       }
 
       .field:last-child {
@@ -80,143 +134,381 @@
 
       .field label {
         display: block;
-        font-weight: 600;
-        margin-bottom: 2px;
+        font-size: 9px;
+        margin-bottom: 8px;
       }
 
       .field .explain {
         display: block;
         color: var(--muted);
-        font-size: 0.85rem;
-        margin-bottom: 6px;
+        font-size: 7px;
+        line-height: 2;
+        margin-bottom: 10px;
       }
 
       input[type='number'],
       input[type='text'] {
         width: 100%;
-        max-width: 160px;
-        padding: 8px 10px;
-        background: var(--panel-2);
-        color: var(--text);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        font: inherit;
+        max-width: 220px;
+        padding: 9px 10px;
+        background: var(--dialog);
+        color: var(--ink);
+        border: 2px solid var(--ink);
+        border-radius: 0;
+        font-family: var(--font);
+        font-size: 9px;
+        line-height: 1.4;
+      }
+
+      #field-pokedexTitle,
+      #add-domain-input {
+        max-width: 100%;
       }
 
       #add-domain-input {
-        max-width: none;
         flex: 1;
       }
 
       input:focus-visible,
       button:focus-visible {
-        outline: 2px solid var(--accent-strong);
+        outline: 2px solid var(--ink);
         outline-offset: 2px;
+      }
+
+      /* ---- Range slider (vintage) ---- */
+      .range-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        max-width: 320px;
+      }
+
+      .range-value {
+        flex: none;
+        min-width: 34px;
+        text-align: center;
+        font-size: 10px;
+        line-height: 1;
+        padding: 6px 6px;
+        background: var(--lcd-bg);
+        color: var(--lcd-ink);
+        border: 2px solid var(--ink);
+      }
+
+      input[type='range'].range-slider {
+        flex: 1;
+        appearance: none;
+        -webkit-appearance: none;
+        width: 100%;
+        height: 16px;
+        padding: 0;
+        margin: 6px 0;
+        background: transparent;
+        border: 0;
+        cursor: pointer;
+      }
+
+      /* chunky white track with a black border */
+      input[type='range'].range-slider::-webkit-slider-runnable-track {
+        height: 12px;
+        background: var(--dialog);
+        border: 2px solid var(--ink);
+        border-radius: 0;
+      }
+
+      input[type='range'].range-slider::-moz-range-track {
+        height: 12px;
+        background: var(--dialog);
+        border: 2px solid var(--ink);
+        border-radius: 0;
+      }
+
+      /* square/pixelated thumb in Pokédex red */
+      input[type='range'].range-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        margin-top: -4px;
+        background: var(--pokedex-red);
+        border: 2px solid var(--ink);
+        border-radius: 0;
+      }
+
+      input[type='range'].range-slider::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        background: var(--pokedex-red);
+        border: 2px solid var(--ink);
+        border-radius: 0;
+      }
+
+      input[type='range'].range-slider:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 3px;
+      }
+
+      .range-hints {
+        display: flex;
+        justify-content: space-between;
+        max-width: 320px;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 7px;
+        line-height: 1.8;
       }
 
       input[aria-invalid='true'] {
         border-color: var(--danger);
+        box-shadow: 0 0 0 1px var(--danger) inset;
       }
 
       .error {
         display: none;
         color: var(--danger);
-        font-size: 0.82rem;
-        margin-top: 4px;
+        font-size: 7px;
+        line-height: 1.9;
+        margin-top: 8px;
       }
 
       .error.visible {
         display: block;
       }
 
+      /* ---- Buttons ---- */
       button {
-        font: inherit;
+        font-family: var(--font);
+        font-size: 9px;
         cursor: pointer;
-        border-radius: 8px;
-        border: 1px solid var(--border);
-        background: var(--panel-2);
-        color: var(--text);
-        padding: 8px 16px;
+        border-radius: 0;
+        border: 2px solid var(--ink);
+        background: var(--dialog);
+        color: var(--ink);
+        padding: 9px 14px;
+        line-height: 1.4;
       }
 
       button.primary {
-        background: var(--accent);
-        color: #1a1206;
-        border-color: var(--accent);
-        font-weight: 700;
+        background: var(--pokedex-red);
+        color: var(--dialog);
+        border: 2px solid var(--ink);
+        border-radius: 999px;
+        padding: 11px 26px;
+        letter-spacing: 1px;
+        box-shadow: 2px 2px 0 var(--ink);
+      }
+
+      button.primary:hover:not(:disabled) {
+        background: var(--pokedex-red-dark);
+      }
+
+      button.primary:active:not(:disabled) {
+        transform: translate(1px, 1px);
+        box-shadow: 1px 1px 0 var(--ink);
       }
 
       button.primary:disabled {
-        opacity: 0.5;
+        background: #c9c9c9;
+        color: #7a7a7a;
+        box-shadow: 2px 2px 0 #7a7a7a;
+        border-color: #7a7a7a;
         cursor: not-allowed;
       }
 
       button.link {
-        background: transparent;
-        border: none;
-        color: var(--accent-strong);
-        padding: 4px 0;
-        text-decoration: underline;
+        background: var(--dialog);
+        border: 2px solid var(--ink);
+        color: var(--pokedex-red);
+        padding: 8px 12px;
+        font-size: 8px;
+      }
+
+      button.link:hover {
+        background: #f0f0f0;
+      }
+
+      /* ---- Blocklist (collapsible) ---- */
+      .blocklist-details {
+        margin: 0;
+      }
+
+      .blocklist-details > summary {
+        /* match the old <h2> heading look */
+        font-size: 11px;
+        line-height: 1.6;
+        letter-spacing: 1px;
+        margin: 0 0 16px;
+        color: var(--pokedex-red);
+        cursor: pointer;
+        list-style: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      /* remove the default disclosure triangle */
+      .blocklist-details > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      /* pixel affordance: ▸ collapsed, ▾ open */
+      .blocklist-details > summary::before {
+        content: '\25B8';
+        font-size: 11px;
+        line-height: 1;
+      }
+
+      .blocklist-details[open] > summary::before {
+        content: '\25BE';
+      }
+
+      .blocklist-details > summary:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 2px;
       }
 
       .blocklist {
         list-style: none;
-        margin: 0 0 16px;
+        margin: 0 0 18px;
         padding: 0;
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 8px;
       }
 
       .blocklist li {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        background: var(--panel-2);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 6px 6px 6px 12px;
+        background: var(--dialog);
+        border: 2px solid var(--ink);
+        padding: 8px 8px 8px 10px;
+      }
+
+      .blocklist .domain {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 8px;
+        line-height: 1.6;
+        word-break: break-all;
+      }
+
+      /* CSS pokeball bullet */
+      .blocklist .domain::before {
+        content: '';
+        flex: none;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 1.5px solid var(--ink);
+        background: linear-gradient(
+          to bottom,
+          var(--pokeball) 0,
+          var(--pokeball) 42%,
+          var(--ink) 42%,
+          var(--ink) 58%,
+          var(--dialog) 58%,
+          var(--dialog) 100%
+        );
+      }
+
+      .blocklist .empty-row {
+        justify-content: flex-start;
       }
 
       .blocklist .empty {
         color: var(--muted);
-        font-style: italic;
+        font-size: 8px;
+        font-style: normal;
       }
 
       .remove-btn {
-        border: none;
-        background: transparent;
-        color: var(--muted);
-        font-size: 1.3rem;
+        border: 2px solid var(--ink);
+        background: var(--dialog);
+        color: var(--danger);
+        font-size: 11px;
         line-height: 1;
-        padding: 2px 8px;
-        border-radius: 6px;
+        padding: 4px 9px;
       }
 
       .remove-btn:hover {
-        color: var(--danger);
+        background: var(--danger);
+        color: var(--dialog);
       }
 
       .add-row {
         display: flex;
         gap: 8px;
-        margin-bottom: 4px;
+        margin-bottom: 8px;
       }
 
+      /* ---- Save row ---- */
       .save-row {
         display: flex;
         align-items: center;
         gap: 16px;
+        padding: 0 6px;
+        flex-wrap: wrap;
       }
 
       #saved-region {
-        color: var(--ok);
-        font-weight: 600;
+        background: var(--lcd-bg);
+        color: var(--lcd-ink);
+        border: 2px solid var(--ink);
+        padding: 8px 12px;
+        font-size: 8px;
         opacity: 0;
       }
 
       #saved-region.visible {
         opacity: 1;
+      }
+
+      /* ---- Resources footer (GB dialog box) ---- */
+      .resources {
+        background: var(--dialog);
+        border: 3px solid var(--ink);
+        box-shadow: 0 0 0 3px var(--dialog), 0 0 0 6px var(--ink);
+        padding: 20px 18px;
+        margin: 34px 6px 8px;
+      }
+
+      .resources h2 {
+        margin: 0 0 14px;
+      }
+
+      .resources ul {
+        list-style: none;
+        margin: 0 0 14px;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        font-size: 8px;
+        line-height: 1.9;
+      }
+
+      .resources a {
+        color: var(--pokedex-red-dark);
+        text-decoration: underline;
+        word-break: break-word;
+      }
+
+      .resources a:hover {
+        color: var(--pokedex-red);
+      }
+
+      .resources a:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 2px;
+      }
+
+      .resources .disclaimer {
+        margin: 0;
+        color: var(--muted);
+        font-size: 7px;
+        line-height: 2;
       }
 
       @media (prefers-reduced-motion: no-preference) {
@@ -226,17 +518,28 @@
           transition:
             opacity 0.2s ease,
             border-color 0.15s ease,
-            background 0.15s ease;
+            background 0.15s ease,
+            transform 0.05s ease;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        button.primary:active:not(:disabled) {
+          transform: none;
         }
       }
     </style>
   </head>
   <body>
     <main id="app" hidden>
-      <h1>dodgy — settings</h1>
-      <p class="subtitle">Tune how tough dodgy is, and which sites it guards.</p>
+      <header class="page-head">
+        <h1>TRAINER SETTINGS</h1>
+        <p class="subtitle">rules your guardian lives by</p>
+      </header>
 
-      <p class="note">Lowering max HP clamps dodgy's current health down into range.</p>
+      <p class="note">
+        Lowering Max HP clamps every party member's HP down into range.
+      </p>
 
       <form id="settings-form" novalidate>
         <section aria-labelledby="rules-heading">
@@ -245,25 +548,27 @@
         </section>
 
         <section aria-labelledby="blocklist-heading">
-          <h2 id="blocklist-heading">Blocklist</h2>
-          <ul id="blocklist" class="blocklist" aria-label="Blocked domains"></ul>
+          <details open class="blocklist-details">
+            <summary id="blocklist-heading">Blocklist</summary>
+            <ul id="blocklist" class="blocklist" aria-label="Blocked domains"></ul>
 
-          <div class="add-row">
-            <label for="add-domain-input" class="sr-only" hidden>Domain to block</label>
-            <input
-              type="text"
-              id="add-domain-input"
-              placeholder="add a site, e.g. youtube.com"
-              autocomplete="off"
-              aria-describedby="add-domain-error"
-            />
-            <button type="button" id="add-domain-btn">Add</button>
-          </div>
-          <p id="add-domain-error" class="error" role="alert"></p>
+            <div class="add-row">
+              <label for="add-domain-input" class="sr-only" hidden>Domain to block</label>
+              <input
+                type="text"
+                id="add-domain-input"
+                placeholder="add a site, e.g. youtube.com"
+                autocomplete="off"
+                aria-describedby="add-domain-error"
+              />
+              <button type="button" id="add-domain-btn">Add</button>
+            </div>
+            <p id="add-domain-error" class="error" role="alert"></p>
 
-          <button type="button" id="reset-blocklist-btn" class="link">
-            Reset to default
-          </button>
+            <button type="button" id="reset-blocklist-btn" class="link">
+              Reset to default
+            </button>
+          </details>
         </section>
 
         <div class="save-row">
@@ -271,6 +576,42 @@
           <span id="saved-region" aria-live="polite" role="status"></span>
         </div>
       </form>
+
+      <footer class="resources" aria-labelledby="resources-heading">
+        <h2 id="resources-heading">RESOURCES</h2>
+        <ul>
+          <li>
+            <a
+              href="https://sprites.pmdcollab.org/"
+              target="_blank"
+              rel="noopener noreferrer"
+              >PMD SpriteCollab — sprites &amp; map background</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://pokeapi.co/"
+              target="_blank"
+              rel="noopener noreferrer"
+              >PokéAPI — species data</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://github.com/PokeAPI/sprites"
+              target="_blank"
+              rel="noopener noreferrer"
+              >PokeAPI/sprites — portraits</a
+            >
+          </li>
+          <li>Press Start 2P by CodeMan38 — SIL OFL</li>
+        </ul>
+        <p class="disclaimer">
+          Full contributor credits ship in dist/assets/pokemon/CREDITS.md.
+          Fan-made; not affiliated with Nintendo, Game Freak, or The Pokémon
+          Company.
+        </p>
+      </footer>
     </main>
     <script type="module" src="./settings.ts"></script>
   </body>

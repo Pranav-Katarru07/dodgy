@@ -1,6 +1,7 @@
 # Pre-existing project files (excluded per project owner instruction)
 CLAUDE.md
 dodgy-PRD.md
+dodgy-v1-PRD.md
 skills-lock.json
 .agents/
 
@@ -10,6 +11,10 @@ node_modules/
 # Build output
 dist/
 *.tsbuildinfo
+
+# Fetched Pokémon assets (no Nintendo IP in the repo; run `npm run assets`).
+# Fonts under public/fonts/ are OFL-licensed and intentionally committed.
+public/assets/
 
 # Environment / secrets
 .env

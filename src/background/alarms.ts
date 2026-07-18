@@ -1,20 +1,14 @@
 // chrome.alarms management. Alarm *handlers* live in index.ts; this module only
 // schedules and clears alarms and helps parse their names.
+//
+// v1: lockout ends at local midnight (the daily-rollover alarm IS the lockout
+// end), so there is no dedicated lockout-end alarm. `nextLocalMidnight` is the
+// pure time helper from the state machine.
 import { ALARMS } from '../shared/constants';
-
-/** Epoch ms of the next local midnight after now. */
-function nextLocalMidnight(): number {
-  const d = new Date();
-  d.setHours(24, 0, 0, 0); // rolls into tomorrow at local 00:00:00.000
-  return d.getTime();
-}
+import { nextLocalMidnight } from './state';
 
 export function scheduleDailyRollover(): void {
-  chrome.alarms.create(ALARMS.dailyRollover, { when: nextLocalMidnight() });
-}
-
-export function scheduleLockoutEnd(lockoutUntil: number): void {
-  chrome.alarms.create(ALARMS.lockoutEnd, { when: lockoutUntil });
+  chrome.alarms.create(ALARMS.dailyRollover, { when: nextLocalMidnight(Date.now()) });
 }
 
 export function scheduleGraceExpiry(domain: string, expiresAt: number): void {
@@ -26,8 +20,8 @@ export async function clearGraceAlarm(domain: string): Promise<void> {
 }
 
 /**
- * Clear every grace alarm except the one for exceptDomain. Used at lockout start
- * so the fatal domain's own grace alarm survives.
+ * Clear every grace alarm except the one for exceptDomain. Used at faint/
+ * permadeath so the fatal domain's own grace alarm survives.
  */
 export async function clearAllGraceAlarms(exceptDomain: string | null): Promise<void> {
   const all = await chrome.alarms.getAll();

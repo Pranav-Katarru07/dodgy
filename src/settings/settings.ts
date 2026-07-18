@@ -3,10 +3,21 @@ import { sendMessage } from '../shared/messages';
 import { normalizeDomain } from '../shared/domains';
 import type { FullState, Settings } from '../shared/types';
 
-/** Numeric settings keys (everything on Settings except the blocklist). */
-type NumericKey = Exclude<keyof Settings, 'blocklist'>;
+/** Numeric settings keys (the number-valued fields of Settings). */
+type NumericKey = {
+  [K in keyof Settings]: Settings[K] extends number ? K : never;
+}[keyof Settings];
 
-interface FieldSpec {
+/** Text settings keys (the string-valued fields of Settings). */
+type TextKey = {
+  [K in keyof Settings]: Settings[K] extends string ? K : never;
+}[keyof Settings];
+
+/** Any editable field key rendered by the form. */
+type FieldKey = NumericKey | TextKey;
+
+interface NumberFieldSpec {
+  kind: 'number';
   key: NumericKey;
   label: string;
   explain: string;
@@ -14,44 +25,123 @@ interface FieldSpec {
   min: number;
 }
 
+interface TextFieldSpec {
+  kind: 'text';
+  key: TextKey;
+  label: string;
+  explain: string;
+  /** Inclusive maximum character length after trimming. */
+  maxLen: number;
+}
+
+interface RangeFieldSpec {
+  kind: 'range';
+  key: NumericKey;
+  label: string;
+  explain: string;
+  /** Inclusive minimum of the slider. */
+  min: number;
+  /** Inclusive maximum of the slider. */
+  max: number;
+  /** Slider step (integers throughout). */
+  step: number;
+}
+
+type FieldSpec = NumberFieldSpec | TextFieldSpec | RangeFieldSpec;
+
+// Field order mirrors PRD §11: pokedexTitle first, then the core numerics, then
+// the Pokémon v1 numerics.
 const FIELD_SPECS: readonly FieldSpec[] = [
   {
+    kind: 'text',
+    key: 'pokedexTitle',
+    label: 'Pokédex title',
+    explain: 'Name shown across the top of your Pokédex screen.',
+    maxLen: 24,
+  },
+  {
+    kind: 'number',
     key: 'maxHp',
     label: 'Max HP',
     explain:
-      "dodgy's full health — how many push-throughs in one day it takes to kill dodgy.",
+      "Your guardian's full health — how many push-throughs in one day it takes to faint it.",
     min: 1,
   },
   {
+    kind: 'number',
     key: 'damagePerEntry',
     label: 'Damage per entry',
-    explain: 'HP dodgy loses each time you push past the block.',
+    explain: 'HP your guardian loses each time you push past the block.',
     min: 1,
   },
   {
+    kind: 'number',
     key: 'levelUpThreshold',
     label: 'Level-up threshold',
     explain:
-      'dodgy grows on any day you push through fewer than this many times.',
+      'Your guardian gains a level on any day you push through fewer than this many times.',
     min: 1,
   },
   {
-    key: 'levelsPerEvolution',
-    label: 'Levels per evolution',
-    explain: 'How many levels between each evolution into a new form.',
-    min: 1,
-  },
-  {
+    kind: 'number',
     key: 'graceMinutes',
     label: 'Grace minutes',
     explain:
-      'After paying, the site stays open this long before dodgy re-guards it.',
+      'After paying, the site stays open this long before your guardian re-guards it.',
     min: 0,
   },
   {
-    key: 'lockoutHours',
-    label: 'Lockout hours',
-    explain: 'If dodgy dies, every blocked site stays locked for this long.',
+    kind: 'range',
+    key: 'chaseDifficulty',
+    label: 'Chase difficulty',
+    explain:
+      'How hard your guardian is to catch — speed, agility, and how long before it tires.',
+    min: 1,
+    max: 10,
+    step: 1,
+  },
+  {
+    kind: 'number',
+    key: 'starterLevel',
+    label: 'Starter level',
+    explain: 'Level a freshly-picked starter or newly-hatched egg begins at.',
+    min: 1,
+  },
+  {
+    kind: 'number',
+    key: 'faintLevelPenalty',
+    label: 'Faint level penalty',
+    explain: 'Levels lost when your guardian faints (it never devolves).',
+    min: 0,
+  },
+  {
+    kind: 'number',
+    key: 'faintStreakToPermadeath',
+    label: 'Faints to permadeath',
+    explain:
+      'Consecutive faints before your guardian is gone for good — a clean guarding day resets the streak.',
+    min: 1,
+  },
+  {
+    kind: 'number',
+    key: 'baseReward',
+    label: 'Base reward',
+    explain: 'PokéCoins earned for a full day your guardian survives untouched.',
+    min: 0,
+  },
+  {
+    kind: 'number',
+    key: 'eggCost',
+    label: 'Egg cost',
+    explain: 'PokéCoins one species egg costs at the shop.',
+    min: 1,
+  },
+  {
+    kind: 'number',
+    key: 'daysToHatch',
+    label: 'Days to hatch',
+    explain:
+      "Clean days needed to hatch an egg — messy days don't reset progress.",
     min: 1,
   },
 ];
@@ -77,9 +167,11 @@ const resetBtn = byId<HTMLButtonElement>('reset-blocklist-btn');
 const saveBtn = byId<HTMLButtonElement>('save-btn');
 const savedRegion = byId<HTMLSpanElement>('saved-region');
 
-/** Live registry of the numeric inputs, keyed by setting. */
-const inputs = new Map<NumericKey, HTMLInputElement>();
-const errorEls = new Map<NumericKey, HTMLElement>();
+/** Live registry of the field inputs, keyed by setting. */
+const inputs = new Map<FieldKey, HTMLInputElement>();
+const errorEls = new Map<FieldKey, HTMLElement>();
+/** Live value readouts for range sliders, keyed by setting. */
+const rangeReadouts = new Map<FieldKey, HTMLElement>();
 
 // ---------------------------------------------------------------------------
 // Field construction
@@ -89,6 +181,7 @@ function buildFields(): void {
   fieldsEl.replaceChildren();
   inputs.clear();
   errorEls.clear();
+  rangeReadouts.clear();
 
   for (const spec of FIELD_SPECS) {
     const wrap = document.createElement('div');
@@ -106,11 +199,7 @@ function buildFields(): void {
     explain.textContent = spec.explain;
 
     const input = document.createElement('input');
-    input.type = 'number';
     input.id = inputId;
-    input.step = '1';
-    input.min = String(spec.min);
-    input.inputMode = 'numeric';
     input.setAttribute('aria-describedby', errorId);
 
     const error = document.createElement('p');
@@ -118,12 +207,52 @@ function buildFields(): void {
     error.id = errorId;
     error.setAttribute('role', 'alert');
 
+    if (spec.kind === 'number') {
+      input.type = 'number';
+      input.step = '1';
+      input.min = String(spec.min);
+      input.inputMode = 'numeric';
+      wrap.append(label, explain, input, error);
+    } else if (spec.kind === 'range') {
+      input.type = 'range';
+      input.className = 'range-slider';
+      input.min = String(spec.min);
+      input.max = String(spec.max);
+      input.step = String(spec.step);
+
+      // Live value readout beside the slider (updates on input).
+      const readout = document.createElement('span');
+      readout.className = 'range-value';
+
+      // Slider + readout on one row, endpoint hints flanking below.
+      const row = document.createElement('div');
+      row.className = 'range-row';
+      row.append(input, readout);
+
+      const hints = document.createElement('div');
+      hints.className = 'range-hints';
+      const lo = document.createElement('span');
+      lo.className = 'range-hint';
+      lo.textContent = `${spec.min} · gentle`;
+      const hi = document.createElement('span');
+      hi.className = 'range-hint';
+      hi.textContent = `${spec.max} · legendary`;
+      hints.append(lo, hi);
+
+      wrap.append(label, explain, row, hints, error);
+      rangeReadouts.set(spec.key, readout);
+    } else {
+      input.type = 'text';
+      input.maxLength = spec.maxLen;
+      input.autocomplete = 'off';
+      wrap.append(label, explain, input, error);
+    }
+
     input.addEventListener('input', () => {
       validateField(spec);
       refreshSaveState();
     });
 
-    wrap.append(label, explain, input, error);
     fieldsEl.append(wrap);
 
     inputs.set(spec.key, input);
@@ -131,41 +260,73 @@ function buildFields(): void {
   }
 }
 
+/** Reflect a range slider's current value into its readout + aria-valuetext. */
+function syncRangeReadout(key: FieldKey): void {
+  const input = inputs.get(key);
+  const readout = rangeReadouts.get(key);
+  if (!input || !readout) return;
+  readout.textContent = input.value;
+  input.setAttribute('aria-valuetext', input.value);
+}
+
 // ---------------------------------------------------------------------------
-// Validation (mirrors the service worker: integers, per-field minimums)
+// Validation (mirrors the service worker's validateSettings)
 // ---------------------------------------------------------------------------
 
 /** Validate one field, update aria/error UI, and return whether it's valid. */
 function validateField(spec: FieldSpec): boolean {
   const input = inputs.get(spec.key)!;
   const error = errorEls.get(spec.key)!;
-  const raw = input.value.trim();
 
   let message = '';
-  if (raw === '') {
-    message = 'Enter a whole number.';
+  if (spec.kind === 'range') {
+    // Sliders can't easily produce an invalid value, but we keep the
+    // mirror-validation pattern so Save logic stays uniform.
+    const value = Number(input.value);
+    if (!Number.isInteger(value) || value < spec.min || value > spec.max) {
+      message = `Must be a whole number between ${spec.min} and ${spec.max}.`;
+    }
+    if (message === '') {
+      working[spec.key] = value;
+    }
+    syncRangeReadout(spec.key);
+  } else if (spec.kind === 'number') {
+    const raw = input.value.trim();
+    if (raw === '') {
+      message = 'Enter a whole number.';
+    } else {
+      const value = Number(raw);
+      if (!Number.isInteger(value)) {
+        message = 'Must be a whole number.';
+      } else if (value < spec.min) {
+        message = `Must be at least ${spec.min}.`;
+      }
+    }
+    if (message === '') {
+      // Only stage a value we know is a clean integer.
+      working[spec.key] = Number(raw);
+    }
   } else {
-    const value = Number(raw);
-    if (!Number.isInteger(value)) {
-      message = 'Must be a whole number.';
-    } else if (value < spec.min) {
-      message = `Must be at least ${spec.min}.`;
+    const trimmed = input.value.trim();
+    if (trimmed === '') {
+      message = 'Enter a title.';
+    } else if (trimmed.length > spec.maxLen) {
+      message = `Must be ${spec.maxLen} characters or fewer.`;
+    }
+    if (message === '') {
+      // Stage the trimmed title so it matches what the SW will persist.
+      working[spec.key] = trimmed;
     }
   }
 
   const valid = message === '';
-  if (valid) {
-    // Only stage a value we know is a clean integer.
-    working[spec.key] = Number(raw);
-  }
-
   input.setAttribute('aria-invalid', valid ? 'false' : 'true');
   error.textContent = message;
   error.classList.toggle('visible', !valid);
   return valid;
 }
 
-/** True only when every numeric field currently validates. */
+/** True only when every field currently validates. */
 function allValid(): boolean {
   let ok = true;
   for (const spec of FIELD_SPECS) {
@@ -188,6 +349,7 @@ function renderBlocklist(): void {
 
   if (working.blocklist.length === 0) {
     const li = document.createElement('li');
+    li.className = 'empty-row';
     const span = document.createElement('span');
     span.className = 'empty';
     span.textContent = 'No sites blocked.';
@@ -200,6 +362,7 @@ function renderBlocklist(): void {
     const li = document.createElement('li');
 
     const name = document.createElement('span');
+    name.className = 'domain';
     name.textContent = domain;
 
     const remove = document.createElement('button');
@@ -242,7 +405,7 @@ function handleAddDomain(): void {
 
 async function handleResetBlocklist(): Promise<void> {
   const confirmed = window.confirm(
-    'Reset the blocklist to dodgy’s defaults? This saves immediately.',
+    'Reset the blocklist to the default set? This saves immediately.',
   );
   if (!confirmed) return;
   const full = await sendMessage({ type: 'RESET_BLOCKLIST' });
@@ -262,6 +425,8 @@ async function handleSave(event: SubmitEvent): Promise<void> {
     return;
   }
   saveBtn.disabled = true;
+  // `working` is the stored Settings spread + our edited fields. UPDATE_SETTINGS
+  // sends the full object.
   const full = await sendMessage({ type: 'UPDATE_SETTINGS', settings: working });
   render(full);
 
@@ -286,6 +451,7 @@ function render(full: FullState): void {
   for (const spec of FIELD_SPECS) {
     const input = inputs.get(spec.key)!;
     input.value = String(working[spec.key]);
+    if (spec.kind === 'range') syncRangeReadout(spec.key);
   }
   renderBlocklist();
   showAddError('');
